@@ -179,7 +179,7 @@ namespace fcl
 		}
 
 		void * ptr_;
-		size_t index_;
+		int index_;
 	};
 
 	//variant variant traits implenmentation
