@@ -200,7 +200,7 @@ namespace fcl
 	};
 
 #ifdef _IOSTREAM_
-	template<typename a, typename = std::enable_if_t<Show<a>::pertain::value && !std::is_same<a, std::string>::value>>
+	template<typename a, typename = std::enable_if_t<Show<a>::pertain::value && !std::is_same<a, std::string>::value && !std::is_arithmetic<a>::value>>
 	std::ostream& operator<<(std::ostream& out, const a& value) { return out << Show<a>::show(value); }
 #endif
 
