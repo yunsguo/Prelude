@@ -56,21 +56,26 @@ namespace fcl
 	struct Function;
 
 	//indirect TMF function definition
-	template<typename a>
+	template<typename f>
 	struct function_traits
 	{
 		//possess trait or not
 		using possess = std::false_type;
 		//a Pack with a haskell style ordering
-		using type = TMP::Pack<void, void>;
+		using type = TMP::Pack<NA, NA>;
 		//common partial applied type
-		using applied = void;
+		using applied = NA;
 		//reversed partial applied type for monad operation
-		using monadic_applied = void;
+		using monadic_applied = NA;
 		//first parameter, last for monadic
-		using head = void;
+		using head = NA;
 		//laster parameter, first for monadic
-		using last = void;
+		using last = NA;
+
+		static applied apply(const f&, const head&);
+
+		static monadic_applied monadic_apply(const f&, const last&);
+
 	};
 
 	template<typename f>
@@ -118,7 +123,7 @@ namespace fcl
 		//for instance if std::vector<int> is a variant probably has a default type int
 		using has_default = std::false_type;
 
-		using default_type = void;
+		using default_type = NA;
 
 		//meta function check type could be a variant
 		template<typename a>
