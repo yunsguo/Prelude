@@ -59,6 +59,8 @@ namespace fcl
 	{
 		using list = TMP::List<a, b, rest...>;
 
+		friend variant_traits<variant<a,b,rest...>>;
+
 		variant() :index_(-1), ptr_(nullptr) {}
 
 		template<typename T, typename = std::enable_if_t<TMP::elem<list, T>::value>>
@@ -93,28 +95,6 @@ namespace fcl
 			ptr_ = other.ptr_;
 			other.ptr_ = nullptr;
 			return *this;
-		}
-
-		template<typename a, typename = std::enable_if_t<TMP::elem<list, a>::value>>
-		bool is_of()const { return index_ == TMP::elem_index<a, list>::value; }
-
-		template<typename a, typename = std::enable_if_t<!TMP::elem<list, a>::value>, size_t = 0>
-		constexpr bool is_of()const { return false; }
-
-		template<typename a>
-		a&& move()
-		{
-			if (!is_of<a>())  throw std::exception("error: type mismatch.");
-			a* actual = (a*)ptr_;
-			return std::move(*actual);
-		}
-
-		template<typename a>
-		const a& get()const
-		{
-			if (!is_of<a>())  throw std::exception("error: type mismatch.");
-			a* actual = (a*)ptr_;
-			return *actual;
 		}
 
 		~variant();
@@ -193,24 +173,38 @@ namespace fcl
 
 		using def = variant<a, b, rest...>;
 
-		template<typename T>
-		using elem = TMP::elem<TMP::List<a, b, rest...>, T>;
+		using list = TMP::List<a, b, rest...>;
 
 		template<typename T>
-		static bool is_of(const def& variant) { return variant.is_of<T>(); }
+		using elem = TMP::elem<list, T>;
+
+		template<typename T, typename = std::enable_if_t<elem<T>::value>>
+		static bool is_of(const def& var) { return var.index_ == TMP::elem_index<T,list>::value; }
+
+		template<typename T, typename = std::enable_if_t<!elem<T>::value>, size_t = 0>
+		constexpr static bool is_of(const def& var) { return false; }
 
 		template<typename T>
-		static T&& move(def& variant) { return variant.move<T>(); }
+		static T&& move(def& var) 
+		{
+			if (!is_of<T>(var))  throw std::exception("error: type mismatch.");
+			T* actual = (T*)var.ptr_;
+			return std::move(*actual);
+		}
 
 		template<typename T>
-		static const T& get(const def& variant) { return variant.get<T>(); }
+		static const T& get(const def& var) 
+		{
+			if (!is_of<T>(var))  throw std::exception("error: type mismatch.");
+			T* actual = (T*)var.ptr_;
+			return *actual;
+		}
 	};
 
 	//implenmetaion of dtor
 	template<typename a, typename b, typename ...rest>
 	inline variant<a, b, rest...>::~variant()
 	{
-		if (ptr_ == nullptr) return;
 		if (index_ == 0)
 		{
 			destruct<0>();

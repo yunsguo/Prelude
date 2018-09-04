@@ -330,7 +330,13 @@ namespace fcl
 	{
 		std::cout << "cast back to: " << *ptr_ << std::endl; return *ptr_;
 	}
+
+	inline std::ostream& operator<<(std::ostream& out, const nontrivial& nt)
+	{
+		return out << "nontrivial " << (int)nt;
+	}
 }
+
 
 #endif
 #endif

@@ -18,31 +18,41 @@ int inc(int a) { return a + 1; }
 
 using Nothing = std::tuple<>;
 
+template<typename a>
+using VT = variant_traits<a>;
+
 int main()
 {
-	variant<int, char, std::string, nontrivial> v;
+	using V1 = variant<int, char, std::string, nontrivial>;
+	V1 v;
 	v = 5;
-	std::cout << v.is_of<int>() << std::endl;
-	std::cout << v.is_of<char>() << std::endl;
-	std::cout << v.get<int>() << std::endl;
+	std::cout << "assign v with 5" << std::endl;
+	std::cout << "v is int: " << VT<V1>::is_of<int>(v) << std::endl;
+	std::cout << "v is char: " << VT<V1>::is_of<char>(v) << std::endl;
+	std::cout << "get v as int: " << VT<V1>::get<int>(v) << std::endl;
 	v = 'c';
-	std::cout << v.is_of<int>() << std::endl;
-	std::cout << v.is_of<char>() << std::endl;
-	std::cout << v.get<char>() << std::endl;
+	std::cout << "assign v with \'c\'" << std::endl;
+	std::cout << "v is int: " << VT<V1>::is_of<int>(v) << std::endl;
+	std::cout << "v is char: " << VT<V1>::is_of<char>(v) << std::endl;
+	std::cout << "get v as char: " << VT<V1>::get<char>(v) << std::endl;
 	v = nontrivial(7);
-	std::cout << v.is_of<int>() << std::endl;
-	std::cout << v.is_of<nontrivial>() << std::endl;
-	std::cout << (int)v.get<nontrivial>() << std::endl;
+	std::cout << "assign v with nontrivial 7" << std::endl;
+	std::cout << "v is int: " << VT<V1>::is_of<int>(v) << std::endl;
+	std::cout << "v is nontrivial: " << VT<V1>::is_of<nontrivial>(v) << std::endl;
+	std::cout << "get v as nontrivial: " << VT<V1>::get<nontrivial>(v) << std::endl;
 
 	Function<int, int> f(inc);
-	std::cout << "function test: "<<f(5) << std::endl;
-	variant<Nothing, Function<int, int>> mf;
+	std::cout << "function test: " << f(5) << std::endl;
+	using V2 = variant<Nothing, Function<int, int>>;
+	V2 mf;
 	mf = f;
-	std::cout << mf.is_of<Nothing>() << std::endl;
-	std::cout << mf.is_of<Function<int, int>>() << std::endl;
-	std::cout << mf.get<Function<int, int>>()(5) << std::endl;
+	std::cout << "assign mf with inc" << std::endl;
+	std::cout << "mf is Nothing: " << VT<V2>::is_of<Nothing>(mf) << std::endl;
+	std::cout << "mf is Function<int, int>: " << VT<V2>::is_of<Function<int, int>>(mf) << std::endl;
+	std::cout << "get v as a function and call with 5: " << VT<V2>::get<Function<int, int>>(mf)(5) << std::endl;
 
-	std::cout << util::type<variant<Nothing, int>>::infer() << std::endl;
+	std::cout << "inferred type V1: " << util::type<V1>::infer() << std::endl;
+	std::cout << "inferred type V2: " << util::type<V2>::infer() << std::endl;
 
 }
 #endif
