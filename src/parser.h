@@ -43,6 +43,7 @@
 
 namespace fcl
 {
+
 	template<typename a>
 	using Reaction = Maybe<Pair<a, std::string>>;
 
@@ -66,7 +67,11 @@ namespace fcl
 	Reaction<a> parse(const Parser<a>& p, const std::string& str) { return p.P(str); }
 
 	template<typename a>
-	Reaction<a> failure(std::string inp) { return Nothing(); }
+	Reaction<a> failure(std::string inp) 
+	{ 
+		const static Nothing nothing = Nothing();
+		return nothing;
+	}
 
 	template<>
 	struct Functor<Parser>
@@ -89,7 +94,8 @@ namespace fcl
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
 		static Parser<applied_type<f>> fmap(const f& f_, const Parser<head_parameter<f>>& pa)
 		{
-			return Function<Reaction<applied_type<f>>, f, Parser<head_parameter<f>>, std::string>(fmap_impl<f>) << f_ << pa;
+			const static auto Ffmap = Function<Reaction<applied_type<f>>, f, Parser<head_parameter<f>>, std::string>(fmap_impl<f>);
+			return Ffmap << f_ << pa;
 		}
 	};
 
@@ -110,12 +116,13 @@ namespace fcl
 	public:
 
 		template<typename a>
-		static Parser<a> empty() { return Parser<a>{failure<a>}; }
+		static Parser<a> empty() { return failure<a>; }
 
 		template<typename a>
 		static Parser<a> alter(const Parser<a>& p, const Parser<a>& q)
 		{
-			return Function<Reaction<a>, Parser<a>, Parser<a>, std::string>(alter_impl<a>) << p << q;
+			const static auto Falter = Function<Reaction<a>, Parser<a>, Parser<a>, std::string>(alter_impl<a>);
+			return Falter << p << q;
 		}
 	};
 
@@ -158,19 +165,22 @@ namespace fcl
 		template<typename a>
 		static Parser<a> pure(const a& value)
 		{
-			return Function<Reaction<a>, a, std::string>(pure_impl<a>) << value;
+			const static auto Fpure = Function<Reaction<a>, a, std::string>(pure_impl<a>);
+			return Fpure << value;
 		}
 
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
 		static Parser<monadic_applied_type<f>> sequence(const Parser<last_parameter<f>>& pa, const Parser<f>& pf)
 		{
-			return Function<Reaction<monadic_applied_type<f>>, Parser<last_parameter<f>>, Parser<f>, std::string>(seq_impl<f>) << pa << pf;
+			const static auto Fseq = Function<Reaction<monadic_applied_type<f>>, Parser<last_parameter<f>>, Parser<f>, std::string>(seq_impl<f>);
+			return Fseq << pa << pf;
 		}
 
 		template<typename a, typename b>
 		static Parser<b> compose(const Parser<a>& p, const Parser<b>& q)
 		{
-			return Function<Reaction<b>, Parser<a>, Parser<b>, std::string>(compose_impl<a, b>) << p << q;
+			const static auto Fcompose = Function<Reaction<b>, Parser<a>, Parser<b>, std::string>(compose_impl<a, b>);
+			return Fcompose << p << q;
 		}
 	};
 
@@ -204,25 +214,22 @@ namespace fcl
 
 	Reaction<std::string> ident(std::string inp);
 
-	int read_int(std::string str);
-
 	Reaction<int> nat(std::string inp);
 
 	Reaction<int> inte(std::string inp);
-
-	bool isSpace(char c);
 
 	Reaction<NA> space(std::string inp);
 
 	template<typename a>
 	Parser<a> token(Parser<a> p)
 	{
-		const static auto MID = Monad<Parser>::pure<Function<a, a>>(id<a>);
+		const static auto Fid = Monad<Parser>::pure<Function<a, a>>(id<a>);
+		const static auto Fspace = Parser<NA>(space);
 		return
-			Parser<NA>(space) >>
+			Fspace >>
 			p >>=
-			Parser<NA>(space) >>
-			MID;
+			Fspace >>
+			Fid;
 	}
 
 	Reaction<std::string> identifier(std::string inp);
@@ -260,14 +267,14 @@ namespace fcl
 	template<typename a, typename>
 	inline Parser<List<a>> any(Parser<a> p) 
 	{
-		const static auto MNIL = Monad<Parser>::pure<List<a>>(List<a>());
-		return some<a>(p) || MNIL;
+		const static auto Mnil = Monad<Parser>::pure<List<a>>(List<a>());
+		return some<a>(p) || Mnil;
 	}
 
 	inline Parser<std::string> any(Parser<char> p) 
 	{
-		const static auto MNIL = Monad<Parser>::pure<std::string>("");
-		return some(p) || MNIL;
+		const static auto Mnil = Monad<Parser>::pure<std::string>("");
+		return some(p) || Mnil;
 	}
 
 	template<typename a, typename>
@@ -276,7 +283,7 @@ namespace fcl
 		const static auto Mcons = Monad<Parser>::pure(Function<List<a>, a, List<a>>(cons<a>));
 		return
 			p >>=
-			any(p) >>=
+			any<a>(p) >>=
 			Mcons;
 	}
 
