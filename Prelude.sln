@@ -9,6 +9,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Parsing", "Parsing\Parsing.
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E55F2B69-1894-4576-AD20-014B6C47DB3E}"
 	ProjectSection(SolutionItems) = preProject
+		readme.md = readme.md
 		todo.txt = todo.txt
 	EndProjectSection
 EndProject

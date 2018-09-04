@@ -45,11 +45,11 @@ namespace fcl
 	//corrisponding to () in Haskell, a type meant to be discarded
 	using NA = std::tuple<>;
 
-	template<typename ...as>
-	using Tuple = std::tuple<as...>;
-
 	template<typename a, typename b>
 	using Pair = std::pair<a, b>;
+
+	template<typename ...as>
+	using Tuple = std::tuple<as...>;
 
 	//generic function container in the form of r function(a first, as... args)
 	template<typename r, typename a, typename ...as>
@@ -81,20 +81,20 @@ namespace fcl
 	template<typename f>
 	using is_function = typename function_traits<f>::possess;
 
-	template<typename a>
-	using function_traits_type = typename function_traits<a>::type;
+	template<typename f>
+	using function_traits_type = typename function_traits<f>::type;
 
-	template<typename a>
-	using applied_type = typename function_traits<a>::applied;
+	template<typename f>
+	using applied_type = typename function_traits<f>::applied;
 
-	template<typename a>
-	using monadic_applied_type = typename function_traits<a>::monadic_applied;
+	template<typename f>
+	using monadic_applied_type = typename function_traits<f>::monadic_applied;
 
-	template<typename a>
-	using head_parameter = typename function_traits<a>::head;
+	template<typename f>
+	using head_parameter = typename function_traits<f>::head;
 
-	template<typename a>
-	using last_parameter = typename function_traits<a>::last;
+	template<typename f>
+	using last_parameter = typename function_traits<f>::last;
 
 	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
 	applied_type<f> operator<<(const f& func,const head_parameter<f>& arg)
