@@ -27,6 +27,12 @@ int test_function2(int a, int b, int c, int d)
 	return (a + b)*c - d;
 }
 
+NA test_function3(int i,char c, float f, double d)
+{
+	std::cout << i << c << f << d << std::endl;
+	return NA();
+}
+
 int main()
 {
 	details::func_container<0, 0, int, nontrivial, nontrivial, nontrivial, nontrivial> f1(test_function1, std::make_tuple(), std::make_tuple());
@@ -89,6 +95,12 @@ int main()
 	delete fptr;
 
 	std::cout << util::type<Function<int, int, int, int, int>>::infer() << std::endl;
+
+	Function<NA, int, char, float, double> tf15(test_function3);
+
+	tf15 << 1 << '2' << 3.0f << 4.0;
+
+	4 >>= '3' >>= 2.0f >>= 1.0 >>= tf15;
 }
 
 #endif

@@ -245,29 +245,6 @@ namespace details
 
 namespace fcl
 {
-	//function type trait definition
-	template<typename r, typename a, typename b, typename ...rest>
-	struct function_traits<Function<r, a, b, rest...>>
-	{
-		using possess = std::true_type;
-		using type = TMP::Pack<a, b, rest..., r>;
-		using applied = Function<r, b, rest...>;
-		using monadic_applied = typename details::reverse_apply<Function<r, a, b, rest...>>::type;
-		using head = a;
-		using last = TMP::last_t<TMP::Pack<a, b, rest...>>;
-	};
-
-	//unary function type trait definition
-	template<typename r, typename a>
-	struct function_traits<Function<r, a>>
-	{
-		using possess = std::true_type;
-		using type = TMP::Pack<a, r>;
-		using applied = r;
-		using monadic_applied = r;
-		using head = a;
-		using last = a;
-	};
 
 	//function container definition
 	template<typename r, typename a, typename b, typename ...rest>
@@ -275,6 +252,8 @@ namespace fcl
 	{
 		template<typename r1, typename b1, typename ...bs>
 		friend struct Function;
+		template<typename f1>
+		friend struct function_traits;
 
 	private:
 		using func_ptr = details::func_ptr<r, a, b, rest...>;
@@ -309,25 +288,15 @@ namespace fcl
 
 		r operator()(a first, b second, rest...args)const { return ptr_->invoke(std::forward_as_tuple(first, second, args...)); }
 
-		Function<r, b, rest...> operator<<(const a& arg)const
-		{
-			a temp(arg);
-			return apply(std::move(temp));
-		}
-
-		monadic_applied apply_r(last&& arg)const { return monadic_applied(ptr_->push_back(std::forward<last>(arg))); }
-
 		~Function() { delete ptr_; }
 
 
 	private:
 
+		applicable * ptr_;
+
 		Function() :ptr_(nullptr) {};
 		Function(applicable* ptr) :ptr_(ptr) {};
-
-		Function<r, b, rest...> apply(a&& arg)const { return Function<r, b, rest...>(ptr_->push_front(std::forward<a>(arg))); }
-
-		applicable* ptr_;
 	};
 
 	//unary function container definition
@@ -337,6 +306,8 @@ namespace fcl
 
 		template<typename r1, typename b1, typename ...bs>
 		friend struct Function;
+		template<typename f1>
+		friend struct function_traits;
 
 	private:
 		using func_ptr = details::func_ptr<r, a>;
@@ -368,32 +339,65 @@ namespace fcl
 
 		r operator()(a arg)const { return ptr_->invoke(std::forward_as_tuple(arg)); }
 
-		r operator<<(const a& arg)const
-		{
-			a temp(arg);
-			return ptr_->invoke(std::make_tuple<a>(std::move(temp)));
-		}
-
-		r apply_r(a&& arg)const { return ptr_->invoke(std::make_tuple<a>(std::forward<a>(arg))); }
-
 		~Function() { delete ptr_; }
 
 	private:
 
+		applicable * ptr_;
+
 		Function() :ptr_(nullptr) {};
 		Function(applicable* ptr) :ptr_(ptr) {};
-
-		r apply(a&& arg)const { return ptr_->invoke(std::make_tuple<a>(std::forward<a>(arg))); }
-
-		applicable* ptr_;
 	};
 
-	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-	monadic_applied_type<f> operator>>=(const last_parameter<f>& arg, const f& func)
+	//function type trait definition
+	template<typename r, typename a, typename b, typename ...rest>
+	struct function_traits<Function<r, a, b, rest...>>
 	{
-		last_parameter<f> temp(arg);
-		return func.apply_r(std::move(temp));
-	}
+		using f = Function<r, a, b, rest...>;
+		using possess = std::true_type;
+		using type = TMP::Pack<a, b, rest..., r>;
+		using applied = Function<r, b, rest...>;
+		using monadic_applied = typename details::reverse_apply<Function<r, a, b, rest...>>::type;
+		using head = a;
+		using last = TMP::last_t<TMP::Pack<a, b, rest...>>;
+
+		static applied apply(const f& func, const head& arg) 
+		{
+			head arg_(arg);
+			return applied(func.ptr_->push_front(std::move(arg_))); 
+		}
+
+		static monadic_applied monadic_apply(const f& func, const last& arg)
+		{
+			last arg_(arg);
+			return monadic_applied(func.ptr_->push_back(std::move(arg_)));
+		}
+	};
+
+	//unary function type trait definition
+	template<typename r, typename a>
+	struct function_traits<Function<r, a>>
+	{
+		using f = Function<r, a>;
+		using possess = std::true_type;
+		using type = TMP::Pack<a, r>;
+		using applied = r;
+		using monadic_applied = r;
+		using head = a;
+		using last = a;
+
+		static r apply(const f& func, const a& arg)
+		{
+			a arg_(arg);
+			return func.ptr_->invoke(std::make_tuple<a>(std::move(arg_)));
+		}
+
+		static r monadic_apply(const f& func, const a& arg)
+		{
+			a arg_(arg);
+			return func.ptr_->invoke(std::make_tuple<a>(std::move(arg_)));
+		}
+	};
 }
 
 

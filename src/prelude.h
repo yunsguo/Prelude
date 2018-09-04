@@ -118,14 +118,6 @@ namespace details
 
 namespace fcl
 {
-	//corrisponding to () in Haskell, a type meant to be discarded
-	using NA = std::tuple<>;
-
-	template<typename ...as>
-	using Tuple = std::tuple<as...>;
-
-	template<typename a, typename b>
-	using Pair = std::pair<a, b>;
 
 	template<typename a, typename b, typename ...rest>
 	using Data = variant<a, b, rest...>;

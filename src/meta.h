@@ -42,6 +42,15 @@
 
 namespace fcl
 {
+	//corrisponding to () in Haskell, a type meant to be discarded
+	using NA = std::tuple<>;
+
+	template<typename ...as>
+	using Tuple = std::tuple<as...>;
+
+	template<typename a, typename b>
+	using Pair = std::pair<a, b>;
+
 	//generic function container in the form of r function(a first, as... args)
 	template<typename r, typename a, typename ...as>
 	struct Function;
@@ -81,6 +90,18 @@ namespace fcl
 
 	template<typename a>
 	using last_parameter = typename function_traits<a>::last;
+
+	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
+	applied_type<f> operator<<(const f& func,const head_parameter<f>& arg)
+	{
+		return function_traits<f>::apply(func, arg);
+	}
+
+	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
+	monadic_applied_type<f> operator>>=(const last_parameter<f>& arg, const f& func)
+	{
+		return function_traits<f>::monadic_apply(func, arg);
+	}
 
 	//generic or type container forward declaration
 	template<typename a, typename b, typename ...rest>
