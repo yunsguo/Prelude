@@ -161,10 +161,6 @@ namespace details
 
 		using back_tuple = typename TMP::to_tuple<typename TMP::drop<para_list, length - bi>::type>::type;
 
-		using front_tuple = typename TMP::to_tuple<typename TMP::take<para_list, fi>::type>::type;
-
-		using back_tuple = typename TMP::to_tuple<typename TMP::drop<para_list, length - bi>::type>::type;
-
 		using para_tuple = typename applicable::para_tuple;
 
 		using front = typename applicable::front;
@@ -179,11 +175,8 @@ namespace details
 
 		template<typename T, typename = std::enable_if_t<std::is_convertible<T, details::func_ptr<r, as...>>::value>>
 		func_container(T p, front_tuple&& ft, back_tuple&& bt) :ptr_(p), ft_(std::forward<front_tuple>(ft)), bt_(std::forward<back_tuple>(bt)) {}
-
-		r invoke(para_tuple&& t)const override
-		{
-			return std::apply(ptr_, std::tuple_cat(ft_, std::forward<para_tuple>(t), bt_));
-		}
+		
+		func_container(const func_container& other) :ptr_(other.ptr_), ft_(other.ft_), bt_(other.bt_) {}
 
 		template<typename = std::enable_if_t<applicable::is_unary::value>>
 		front_applied_type front_apply(front&& arg) const { return invoke(std::make_tuple(std::forward<front>(arg))); }
@@ -196,11 +189,6 @@ namespace details
 			return new func_container<fi + 1, bi, r, as...>(ptr_, std::tuple_cat(ft, std::make_tuple(arg)), std::move(bt));
 		}
 
-		typename applicable::front_applied_type push_front(front&& arg)const override
-		{
-			return front_apply(std::forward<front>(arg));
-		}
-
 		template<typename = std::enable_if_t<applicable::is_unary::value>>
 		back_applied_type back_apply(back&& arg) const { return invoke(std::make_tuple(arg)); }
 
@@ -210,6 +198,16 @@ namespace details
 			auto ft(ft_);
 			auto bt(bt_);
 			return new func_container<fi, bi + 1, r, as...>(ptr_, std::move(ft), std::tuple_cat(std::make_tuple(arg), bt));
+		}
+
+		r invoke(para_tuple&& t)const override
+		{
+			return std::apply(ptr_, std::tuple_cat(ft_, std::forward<para_tuple>(t), bt_));
+		}
+
+		typename applicable::front_applied_type push_front(front&& arg)const override
+		{
+			return front_apply(std::forward<front>(arg));
 		}
 
 		typename applicable::back_applied_type push_back(back&& arg)const override
@@ -225,6 +223,73 @@ namespace details
 		details::func_ptr<r, as...> ptr_;
 		front_tuple ft_;
 		back_tuple bt_;
+	};
+
+	template<typename r, typename ...as>
+	struct func_container<0,0,r,as...> :public details::applicable<r, TMP::List<as...>>
+	{
+		using applicable = details::applicable<r, TMP::List<as...>>;
+
+		using para_list = TMP::List<as...>;
+
+		enum { length = sizeof...(as) };
+
+		using para_tuple = typename applicable::para_tuple;
+
+		using front = typename applicable::front;
+
+		using back = typename applicable::back;
+
+		using front_applied_type = typename std::conditional<applicable::is_unary::value, r, func_container<1, 0, r, as...>*>::type;
+
+		using back_applied_type = typename std::conditional<applicable::is_unary::value, r, func_container<0, 1, r, as...>*>::type;
+
+		func_container() = delete;
+
+		template<typename T, typename = std::enable_if_t<std::is_convertible<T, details::func_ptr<r, as...>>::value>>
+		func_container(T p) :ptr_(p) {}
+
+		func_container(const func_container& other) :ptr_(other.ptr_) {}
+
+		template<typename = std::enable_if_t<applicable::is_unary::value>>
+		front_applied_type front_apply(front&& arg) const { return invoke(std::make_tuple(std::forward<front>(arg))); }
+
+		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
+		front_applied_type front_apply(front&& arg) const
+		{
+			return new func_container<1, 0, r, as...>(ptr_, std::make_tuple(std::forward<front>(arg)), std::tuple<>());
+		}
+
+		template<typename = std::enable_if_t<applicable::is_unary::value>>
+		back_applied_type back_apply(back&& arg) const { return invoke(std::make_tuple(std::forward<back>(arg))); }
+
+		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
+		back_applied_type back_apply(back&& arg) const
+		{
+			return new func_container<0, 1, r, as...>(ptr_, std::tuple<>(), std::make_tuple(std::forward<back>(arg)));
+		}
+
+		r invoke(para_tuple&& t)const override
+		{
+			return std::apply(ptr_, std::forward<para_tuple>(t));
+		}
+
+		typename applicable::front_applied_type push_front(front&& arg)const override
+		{
+			return front_apply(std::forward<front>(arg));
+		}
+
+		typename applicable::back_applied_type push_back(back&& arg)const override
+		{
+			return back_apply(std::forward<back>(arg));
+		}
+
+		applicable* new_ptr()const override { return new func_container(*this); }
+
+		virtual ~func_container() override {}
+
+	private:
+		details::func_ptr<r, as...> ptr_;
 	};
 
 	template<typename r, typename pack_of_a>
@@ -266,7 +331,7 @@ namespace fcl
 		using last = last_parameter<Function>;
 
 		template<typename f, typename = std::enable_if_t<std::is_convertible<f, func_ptr>::value>>
-		Function(f ptr) :ptr_(new func_con(ptr, std::make_tuple(), std::make_tuple())) {}
+		Function(f ptr) :ptr_(new func_con(ptr)) {}
 
 		Function(const Function& other) :ptr_(other.ptr_->new_ptr()) {}
 
@@ -317,7 +382,7 @@ namespace fcl
 	public:
 
 		template<typename f, typename = std::enable_if_t<std::is_convertible<f, func_ptr>::value>>
-		Function(f ptr) :ptr_(new func_con(ptr, std::make_tuple(), std::make_tuple())) {}
+		Function(f ptr) :ptr_(new func_con(ptr)) {}
 
 		Function(const Function& other) :ptr_(other.ptr_->new_ptr()) {}
 

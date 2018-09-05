@@ -15,12 +15,12 @@
 *	can contains a certain type given the potential types
 *	can be retrived
 *	default constructed instance is ill-formed
-*	infer contained type is runtime while infer whether it's legal to contain is compile-time 
+*	infer contained type is runtime while infer whether it's legal to contain is compile-time
 *	if anyone finds a way to do compile time inference, please contact me
 *
 *   Public Interface:
 *	variant<int,char,float,std::string> v = 5;
-*	bool t = v.is_of<int>(); 
+*	bool t = v.is_of<int>();
 *	int i = v.get<int>();
 *	int i1 = v.move<int>(); //v is ill-formed after this
 *	auto v2 = v;
@@ -48,8 +48,102 @@
 #ifndef _VARIANT_
 #define _VARIANT_
 
+
 #include "meta.h"
 #include <exception>
+#include <memory>
+
+namespace details
+{
+	//heterogeneous container
+	template<typename a>
+	using is_union_member = std::bool_constant<
+		std::is_trivially_constructible<a>::value &&
+		std::is_trivially_copy_constructible<a>::value &&
+		std::is_trivially_destructible<a>::value &&
+		std::is_trivially_copy_assignable<a>::value
+	>;
+
+	//heterogeneous container
+	template<typename list>
+	union hetero_container
+	{
+		using head = typename TMP::head<list>::type;
+		using tail = typename TMP::tail<list>::type;
+		using curr_type = std::conditional_t<is_union_member<head>::value, head, head*>;
+
+		template<typename a>
+		using elem = TMP::elem<list, a>;
+
+		hetero_container() {}
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && is_union_member<a>::value>>
+		hetero_container(a&& value) : curr_(std::forward<a>(value)) {}
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && !is_union_member<a>::value>, size_t = 0>
+		hetero_container(a&& value) : curr_(new a(std::forward<a>(value))) {}
+
+		template<typename a, typename = std::enable_if_t<!std::is_same<a, head>::value>, size_t = 0, size_t = 1>
+		hetero_container(a&& value) : next_(std::forward<a>(value)) {}
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && is_union_member<a>::value>>
+		a& ref() { return curr_; }
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && !is_union_member<a>::value>, size_t = 0>
+		a& ref() { return *curr_; }
+
+		template<typename a, typename = std::enable_if_t<!std::is_same<a, head>::value>, size_t = 0, size_t = 1>
+		a& ref() { return next_.ref<a>(); }
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && is_union_member<a>::value>>
+		void destruct() { curr_.~a(); }
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && !is_union_member<a>::value>, size_t = 0>
+		void destruct() { delete curr_; curr_ = nullptr; }
+
+		template<typename a, typename = std::enable_if_t<!std::is_same<a, head>::value>, size_t = 0, size_t = 1>
+		void destruct() { next_.destruct<a>(); }
+
+		~hetero_container() {}
+
+	private:
+		curr_type curr_;
+		hetero_container<tail> next_;
+	};
+
+	template<typename T>
+	union hetero_container<TMP::Cons<T, TMP::Nil>>
+	{
+		using curr_type = std::conditional_t<is_union_member<T>::value, T, T*>;
+		using head = T;
+
+		hetero_container() {}
+
+		template<typename = std::enable_if_t<is_union_member<head>::value>>
+		hetero_container(head&& value) : curr_(std::forward<head>(value)) {}
+
+		template<typename = std::enable_if_t<!is_union_member<head>::value>, size_t = 0>
+		hetero_container(head&& value) : curr_(new head(std::forward<head>(value))) {}
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && is_union_member<a>::value>>
+		a& ref() { return curr_; }
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && !is_union_member<a>::value>, size_t = 0>
+		a& ref() { return *curr_; }
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && is_union_member<a>::value>>
+		void destruct() { curr_.~a(); }
+
+		template<typename a, typename = std::enable_if_t<std::is_same<a, head>::value && !is_union_member<a>::value>, size_t = 0>
+		void destruct() { delete curr_; curr_ = nullptr; }
+
+		~hetero_container() {}
+
+	private:
+		curr_type curr_;
+	};
+
+}
 
 namespace fcl
 {
@@ -59,23 +153,20 @@ namespace fcl
 	{
 		using list = TMP::List<a, b, rest...>;
 
-		friend variant_traits<variant<a,b,rest...>>;
-
-		variant() :index_(-1), ptr_(nullptr) {}
+		variant() :index_(-1) {}
 
 		template<typename T, typename = std::enable_if_t<TMP::elem<list, T>::value>>
-		variant(T value) : index_(TMP::elem_index<T, list>::value), ptr_(new T(std::move(value))) {}
+		variant(T value) : index_(TMP::elem_index<T, list>::value), hc_(std::move(value)) {}
 
-		variant(const variant& other) :index_(other.index_) { copy_op(other.ptr_); }
+		variant(const variant& other) :index_(other.index_), hc_() {}
 
-		variant(variant&& other) :index_(other.index_), ptr_(other.ptr_) { other.ptr_ = nullptr; }
+		variant(variant&& other) :index_(other.index_), hc_() {}
 
 		template<typename U, typename std::enable_if_t<TMP::elem<list, U>::value>>
-		variant& operator=(U value)
+		variant& operator=(U rvalue)
 		{
-			~variant();
 			index_ = TMP::elem_index<U, list>::value;
-			ptr_ = new U(std::move(value));
+			hc_.movein(std::move(other.hc_), index_);
 			return *this;
 		}
 
@@ -84,7 +175,7 @@ namespace fcl
 			if (&other != this)
 			{
 				index_ = other.index_;
-				copy_op(other.ptr_);
+				hc_.copyin(other.hc_, index_);
 			}
 			return *this;
 		}
@@ -92,74 +183,36 @@ namespace fcl
 		variant& operator=(variant&& other)
 		{
 			index_ = other.index_;
-			ptr_ = other.ptr_;
-			other.ptr_ = nullptr;
+			hc_.movein(std::move(other.hc_), index_);
 			return *this;
 		}
 
-		~variant();
-
+		~variant() {}
 
 	private:
+		details::hetero_container<list> hc_;
+		size_t index_;
 
-		template<typename U, typename std::enable_if_t<TMP::elem<list, U>::value>>
-		variant(U* ptr) :index_(TMP::elem_index<T, list>::value), ptr_(ptr) {}
-
-		//bisection search convert runtime int to a compile-time one
-		//might take a while if variant contains a lot of types
-		//for instance for a variant of 5, instantiations would be 5 destruct() and 11 try_destruct()
-		//adding copy methods gives us 32 different methods
-		template<int N, int M>
-		void try_destruct(int i)
+		template<size_t N, size_t M>
+		void try_destruct()
 		{
-			constexpr int pivot = (N + M) / 2;
-			if (i == pivot)
+			constexpr size_t pivot = (N + M) / 2;
+			if (index_ == pivot)
 				destruct<pivot>();
 			else if (i > pivot)
 				try_destruct<pivot, M>(i);
 			else try_destruct<N, pivot>(i);
 		}
 
-		template<int N>
-		void destruct()
-		{
-			typename TMP::index<list, N>::type* actual = (typename TMP::index<list, N>::type*)ptr_;
-			delete actual;
-			ptr_ = nullptr;
-		}
+		template<size_t I>
+		void destruct() { hc_.destruct<typename TMP::index<list, I>::type>(); }
 
-		void copy_op(void* ptr)
+		template<size_t I>
+		void movein(details::hetero_container<list>& hc)
 		{
-			if (index_ == 0)
-			{
-				copy<0>(ptr);
-				return;
-			}
-			constexpr int last = TMP::length<list>::value - 1;
-			if (index_ == last) copy<last>(ptr);
-			else try_copy<0, last>(ptr);
+			using T = typename TMP::index<list, I>::type;
+			hc_.ref<T>() = 
 		}
-
-		template<int N>
-		void copy(void* ptr)
-		{
-			typename TMP::index<list, N>::type* actual = (typename TMP::index<list, N>::type*)ptr;
-			ptr_ = new typename TMP::index<list, N>::type(*actual);
-		}
-
-		template<int N, int M>
-		void try_copy(void* ptr)
-		{
-			constexpr int pivot = (N + M) / 2;
-			if (index_ == pivot)
-				copy<pivot>(ptr);
-			else if (index_ > pivot)
-				try_copy<pivot, M>(ptr);
-			else try_copy<N, pivot>(ptr);
-		}
-
-		void * ptr_;
-		int index_;
 	};
 
 	//variant variant traits implenmentation
@@ -179,13 +232,13 @@ namespace fcl
 		using elem = TMP::elem<list, T>;
 
 		template<typename T, typename = std::enable_if_t<elem<T>::value>>
-		static bool is_of(const def& var) { return var.index_ == TMP::elem_index<T,list>::value; }
+		static bool is_of(const def& var) { return var.index_ == TMP::elem_index<T, list>::value; }
 
 		template<typename T, typename = std::enable_if_t<!elem<T>::value>, size_t = 0>
 		constexpr static bool is_of(const def& var) { return false; }
 
 		template<typename T>
-		static T&& move(def& var) 
+		static T&& move(def& var)
 		{
 			if (!is_of<T>(var))  throw std::exception("error: type mismatch.");
 			T* actual = (T*)var.ptr_;
@@ -193,27 +246,13 @@ namespace fcl
 		}
 
 		template<typename T>
-		static const T& get(const def& var) 
+		static const T& get(const def& var)
 		{
 			if (!is_of<T>(var))  throw std::exception("error: type mismatch.");
 			T* actual = (T*)var.ptr_;
 			return *actual;
 		}
 	};
-
-	//implenmetaion of dtor
-	template<typename a, typename b, typename ...rest>
-	inline variant<a, b, rest...>::~variant()
-	{
-		if (index_ == 0)
-		{
-			destruct<0>();
-			return;
-		}
-		constexpr int last = TMP::length<list>::value - 1;
-		if (index_ == last) destruct<last>();
-		else try_destruct<0, last>(index_);
-	}
 }
 
 #endif

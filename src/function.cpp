@@ -27,15 +27,22 @@ int test_function2(int a, int b, int c, int d)
 	return (a + b)*c - d;
 }
 
-NA test_function3(int i,char c, float f, double d)
+NA test_function3(int i, char c, float f, double d)
 {
 	std::cout << i << c << f << d << std::endl;
 	return NA();
 }
 
+NA increment(int i)
+{
+	std::cout << "increment: " << i << " -> " << i + 1 << std::endl;
+	return NA();
+}
+
 int main()
 {
-	details::func_container<0, 0, int, nontrivial, nontrivial, nontrivial, nontrivial> f1(test_function1, std::make_tuple(), std::make_tuple());
+	details::func_container<0, 0, int, nontrivial, nontrivial, nontrivial, nontrivial> f1(test_function1);
+	std::cout << std::endl << "function direct invoke" << std::endl << std::endl;
 	std::cout << f1.invoke(std::make_tuple<nontrivial, nontrivial, nontrivial, nontrivial>(4, 3, 2, 1)) << std::endl;
 
 	std::cout << std::endl << "function front operation start" << std::endl << std::endl;
@@ -59,8 +66,6 @@ int main()
 	//Function<int, int, int, int, int> tf1(test_function2);
 
 	Function<int, int, int, int, int> tf1 = test_function2;
-
-	Function<int, nontrivial, nontrivial, nontrivial, nontrivial> tf2(test_function1);
 
 	std::cout << tf1(4, 3, 2, 1) << std::endl;
 
@@ -101,6 +106,10 @@ int main()
 	tf15 << 1 << '2' << 3.0f << 4.0;
 
 	4 >>= '3' >>= 2.0f >>= 1.0 >>= tf15;
+
+	Function<NA, int> tf16(increment);
+
+	tf16 << 5;
 }
 
 #endif
