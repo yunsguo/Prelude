@@ -10,10 +10,12 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E55F2B69-1894-4576-AD20-014B6C47DB3E}"
 	ProjectSection(SolutionItems) = preProject
 		readme.md = readme.md
-		todo.txt = todo.txt
+		todo.md = todo.md
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "function_container", "function_container\function_container.vcxproj", "{8B4061F5-80E2-4AFF-A4CD-F68DD558B3DF}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "JSON", "JSON\JSON.vcxproj", "{5924E82F-21D3-4A96-83B3-BE111AB2D827}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,6 +49,14 @@ Global
 		{8B4061F5-80E2-4AFF-A4CD-F68DD558B3DF}.Release|x64.Build.0 = Release|x64
 		{8B4061F5-80E2-4AFF-A4CD-F68DD558B3DF}.Release|x86.ActiveCfg = Release|Win32
 		{8B4061F5-80E2-4AFF-A4CD-F68DD558B3DF}.Release|x86.Build.0 = Release|Win32
+		{5924E82F-21D3-4A96-83B3-BE111AB2D827}.Debug|x64.ActiveCfg = Debug|x64
+		{5924E82F-21D3-4A96-83B3-BE111AB2D827}.Debug|x64.Build.0 = Debug|x64
+		{5924E82F-21D3-4A96-83B3-BE111AB2D827}.Debug|x86.ActiveCfg = Debug|Win32
+		{5924E82F-21D3-4A96-83B3-BE111AB2D827}.Debug|x86.Build.0 = Debug|Win32
+		{5924E82F-21D3-4A96-83B3-BE111AB2D827}.Release|x64.ActiveCfg = Release|x64
+		{5924E82F-21D3-4A96-83B3-BE111AB2D827}.Release|x64.Build.0 = Release|x64
+		{5924E82F-21D3-4A96-83B3-BE111AB2D827}.Release|x86.ActiveCfg = Release|Win32
+		{5924E82F-21D3-4A96-83B3-BE111AB2D827}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -374,11 +374,10 @@ namespace fcl
 	template<typename a>
 	struct Show<Maybe<a>>
 	{
-		using pertain = typename Show<a>::pertain;
-
-		template<typename = std::enable_if_t<pertain::value>>
+		using pertain = std::true_type;
 		static std::string show(const Maybe<a>& value)
 		{
+			static_assert(Show<a>::pertain::value, "Maybe<a> is not of Show because a is not of Show.");
 			if (isNothing(value)) return "Nothing";
 			return "Just " + Show<a>::show(fromJust(value));
 		}
@@ -461,63 +460,90 @@ namespace fcl
 	template<typename a>
 	struct Show<Tuple<a>>
 	{
-		using pertain = typename Show<a>::pertain;
+		using pertain = std::true_type;
 
-		template<typename = std::enable_if_t<pertain::value>>
-		static std::string show(const Tuple<a>& value) { return "(" + content(value) + ")"; }
+	private:
 
-		template<typename = std::enable_if_t<pertain::value>>
-		static std::string content(Tuple<a> value) { return Show<a>::show(std::get<0>(value)); }
+		static std::string content(Tuple<a> value) 
+		{
+			static_assert(Show<a>::pertain::value, "Tuple<a> is not of Show because a is not of Show.");
+			return Show<a>::show(std::get<0>(value));
+		}
+
+	public:
+
+		static std::string show(const Tuple<a>& value) 
+		{
+			static_assert(Show<a>::pertain::value, "Tuple<a> is not of Show because a is not of Show.");
+			return "(" + content(value) + ")";
+		}
 	};
 
 	template<typename a, typename b>
 	struct Show<Pair<a, b>>
 	{
-		using pertain = details::are_show<a, b>;
+		using pertain = std::true_type;
 
-		template<typename = std::enable_if_t<pertain::value>>
-		static std::string show(const Pair<a, b>& value) { return "(" + Show<a>::show(value.first) + "," + Show<b>::show(value.second) + ")"; }
+		static std::string show(const Pair<a, b>& value) 
+		{
+			static_assert(details::are_show<a, b>::value, "Pair<a,b> is not of Show because a or b are not all of Show.");
+			return "(" + Show<a>::show(value.first) + ", " + Show<b>::show(value.second) + ")"; 
+		}
 	};
 
 	template<typename a, typename ...as>
 	struct Show<Tuple<a, as...>>
 	{
-		using pertain = details::are_show<a, as...>;
+		using pertain = std::true_type;
 
-		template<typename = std::enable_if_t<pertain::value>>
-		static std::string show(const Tuple<a, as...>& value) { return "(" + content(value) + ")"; }
-
-		template<typename = std::enable_if_t<pertain::value>>
+	private:
 		static std::string content(Tuple<a, as...> value)
 		{
+			static_assert(details::are_show<a, as...>::value, "Tuple<a,as...> is not of Show because a,as... are not all of Show.");
 			auto first = Show<a>::show(std::get<0>(value));
-			return first + "," + Show<Tuple<as...>>::content(details::tail(std::move(value)));
+			return first + ", " + Show<Tuple<as...>>::content(details::tail(std::move(value)));
 		}
+
+	public:
+		static std::string show(const Tuple<a, as...>& value) 
+		{
+			static_assert(details::are_show<a, as...>::value, "Tuple<a,as...> is not of Show because a,as... are not all of Show.");
+			return "(" + content(value) + ")";
+		}
+	};
+
+	template<>
+	struct Show<char>
+	{
+		using pertain = std::true_type;
+		static std::string show(const char& value) { return "\'" + value + '\''; }
 	};
 
 	template<>
 	struct Show<std::string>
 	{
 		using pertain = std::true_type;
-		static std::string show(const std::string& value) { return value; }
+		static std::string show(const std::string& value) { return '\"' + value + '\"'; }
 	};
 
 	template<typename a, typename b, typename ...rest>
 	struct Show<variant<a, b, rest...>>
 	{
-		using pertain = details::are_show<a, b, rest...>;
+		using pertain = std::true_type;
 		using V = variant<a, b, rest...>;
-	private:
 
+	private:
 		template<size_t I, typename = std::enable_if_t<I == TMP::length<V>::value>>
 		static std::string show_impl(const V& value)
 		{
+			static_assert(details::are_show<a, b, rest...>::value, "variant<a, b, rest...> is not of Show because a, b, rest... are not all of Show.");
 			throw std::exception("error: type mismatch.");
 		}
 
 		template<size_t I, typename = std::enable_if_t<I != TMP::length<V>::value>, size_t = 0>
 		static std::string show_impl(const V& value)
 		{
+			static_assert(details::are_show<a, b, rest...>::value, "variant<a, b, rest...> is not of Show because a, b, rest... are not all of Show.");
 			using T = typename TMP::index<V, I>::type;
 			if (variant_traits<V>::is_of<T>(value))
 				return util::type<T>::infer() + " " + Show<T>::show(variant_traits<V>::get<T>(value));
@@ -525,9 +551,11 @@ namespace fcl
 		}
 
 	public:
-
-		template<typename = std::enable_if_t<pertain::value>>
-		static std::string show(const V& value) { return show_impl<0>(value); }
+		static std::string show(const V& value) 
+		{
+			static_assert(details::are_show<a, b, rest...>::value, "variant<a, b, rest...> is not of Show because a, b, rest... are not all of Show.");
+			return show_impl<0>(value);
+		}
 	};
 
 	template<typename a>

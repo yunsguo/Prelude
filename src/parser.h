@@ -190,6 +190,10 @@ namespace fcl
 
 	Reaction<char> digit(std::string inp);
 
+	Reaction<char> digit19(std::string inp);
+
+	Reaction<char> hexdecimal(std::string inp);
+
 	Reaction<char> lower(std::string inp);
 
 	Reaction<char> upper(std::string inp);
@@ -200,17 +204,9 @@ namespace fcl
 
 	Parser<char> character(char c);
 
+	std::string one_char_str(char c);
+
 	Parser<std::string> string(std::string str);
-
-	template<typename a, typename = std::enable_if_t<!std::is_same<a, char>::value>>
-	Parser<List<a>> any(Parser<a> p);
-
-	Parser<std::string> any(Parser<char> p);
-
-	template<typename a, typename = std::enable_if_t<!std::is_same<a, char>::value>>
-	Parser<List<a>> some(Parser<a> p);
-
-	Parser<std::string> some(Parser<char> p);
 
 	Reaction<std::string> ident(std::string inp);
 
@@ -219,6 +215,32 @@ namespace fcl
 	Reaction<int> inte(std::string inp);
 
 	Reaction<NA> space(std::string inp);
+
+	Reaction<std::string> identifier(std::string inp);
+
+	Reaction<int> natural(std::string inp);
+
+	Reaction<int> integer(std::string inp);
+
+	Parser<std::string> symbol(std::string str);
+
+	std::string cons_str(char c, std::string str);
+
+	Pair<char, std::string> uncons_str(std::string str);
+
+	std::string concat_str(std::string, std::string);
+
+	Parser<std::string> maybe_one(Parser<char> p);
+
+	Parser<std::string> any(Parser<char> p);
+
+	Parser<std::string> some(Parser<char> p);
+
+	template<typename a>
+	Parser<List<a>> any(Parser<a> p);
+
+	template<typename a>
+	Parser<List<a>> some(Parser<a> p);
 
 	template<typename a>
 	Parser<a> token(Parser<a> p)
@@ -231,18 +253,6 @@ namespace fcl
 			Fspace >>
 			Fid;
 	}
-
-	Reaction<std::string> identifier(std::string inp);
-
-	Reaction<int> natural(std::string inp);
-
-	Reaction<int> integer(std::string inp);
-
-	Parser<std::string> symbol(std::string str);
-
-	inline std::string cons_str(char c, std::string str);
-
-	inline Pair<char, std::string> uncons_str(std::string str);
 
 #ifdef PARSER_CPP
 
@@ -263,36 +273,37 @@ namespace fcl
 #endif
 
 	//implenmentation
-
-	template<typename a, typename>
+	template<typename a>
 	inline Parser<List<a>> any(Parser<a> p) 
 	{
-		const static auto Mnil = Monad<Parser>::pure<List<a>>(List<a>());
-		return some<a>(p) || Mnil;
+		const static Function<Reaction<List<a>>, Parser<a>, std::string> any_impl =
+			[](Parser<a> p, std::string inp) ->Reaction<List<a>> 
+		{
+			auto reaction = parse(p, inp);
+			if (isNothing(reaction))
+				return std::make_pair<List<a>, std::string>(List<a>(), std::move(inp));
+			auto pair = fromJust(reaction);
+			List<a> ans;
+			std::string inpn;
+			while (true)
+			{
+				ans.push_back(std::move(pair.first));
+				inpn = std::move(pair.second);
+				reaction = parse(p, inpn);
+				if (isNothing(reaction)) return std::make_pair<List<a>, std::string>(std::move(ans), std::move(inpn));
+				pair = fromJust(reaction);
+			}
+		};
+		return any_impl << p;
 	}
 
-	inline Parser<std::string> any(Parser<char> p) 
-	{
-		const static auto Mnil = Monad<Parser>::pure<std::string>("");
-		return some(p) || Mnil;
-	}
-
-	template<typename a, typename>
+	template<typename a>
 	inline Parser<List<a>> some(Parser<a> p)
 	{
 		const static auto Mcons = Monad<Parser>::pure(Function<List<a>, a, List<a>>(cons<a>));
 		return
 			p >>=
 			any<a>(p) >>=
-			Mcons;
-	}
-
-	inline Parser<std::string> some(Parser<char> p)
-	{
-		const static auto Mcons = Monad<Parser>::pure(Function<std::string, char, std::string>(cons_str));
-		return
-			p >>=
-			any(p) >>=
 			Mcons;
 	}
 }
