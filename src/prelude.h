@@ -207,13 +207,10 @@ namespace fcl
 	template<template<typename> typename F>
 	struct Functor
 	{
-		using pertain = typename Applicative<F>::pertain;
+		using pertain = std::false_type;
 
-		template<typename f, typename = std::enable_if_t<is_function<f>::value && Applicative<F>::pertain::value>>
-		static F<applied_type<f>> fmap(const f& func, const F<head_parameter<f>>& fa)
-		{
-			return Applicative<F>::template sequence<f>(Applicative<F>::template pure<f>(func), fa);
-		}
+		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
+		static F<applied_type<f>> fmap(const f& func, const F<head_parameter<f>>& fa);
 	};
 
 	template<template<typename> typename F, typename f, typename = std::enable_if_t<Functor<F>::pertain::value && is_function<f>::value>>
@@ -224,7 +221,7 @@ namespace fcl
 	{
 		using pertain = std::false_type;
 
-		template<typename a>
+		template<typename a, typename = std::enable_if_t<is_function<f>::value>>
 		static A<a> pure(const a&);
 
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
@@ -318,7 +315,7 @@ namespace fcl
 	bool isJust(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::is_of<Just<a>>(ma); }
 
 	template<typename a>
-	bool isNothing(Maybe<a> ma) { return variant_traits<Maybe<a>>::is_of<Nothing>(ma); }
+	bool isNothing(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::is_of<Nothing>(ma); }
 
 	template<typename a>
 	a fromJust(Maybe<a> ma) { return variant_traits<Maybe<a>>::move<Just<a>>(ma).value; }
