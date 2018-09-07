@@ -18,18 +18,18 @@ Reaction<char> fcl::item(std::string inp)
 	return uncons_str(inp);
 }
 
-Reaction<char> sat_impl(Function<bool, char> p, std::string inp)
-{
-	if (inp.length() == 0) return Nothing();
-	auto pair = uncons_str(inp);
-	if (p(pair.first)) return pair;
-	return Nothing();
-}
-
 Parser<char> fcl::sat(Function<bool, char> p)
 {
-	const static Function<Reaction<char>, Function<bool, char>, std::string> Fsat = sat_impl;
-	return Fsat << p;
+	const static Function<Reaction<char>, Function<bool, char>, std::string> sat_impl =
+		[](Function<bool, char> p, std::string inp)->Reaction<char>
+	{
+		if (inp.length() == 0) return Nothing();
+		auto pair = uncons_str(inp);
+		if (p(pair.first)) return pair;
+		return Nothing();
+	};
+
+	return sat_impl << p;
 }
 
 Reaction<char> fcl::digit(std::string inp)
@@ -84,23 +84,23 @@ std::string fcl::one_char_str(char c) { return std::string(1, c); }
 
 Parser<std::string> fcl::string(std::string str)
 {
-	if (str.length() == 0) return Monad<Parser>::pure<std::string>("");
+	const static auto Mempty_str = Monad<Parser>::pure<std::string>("");
+	if (str.length() == 0) return Mempty_str;
 
-	const static auto Pcons = Monad<Parser>::pure(Function<std::string, char, std::string>(cons_str));
-
+	const static auto Fcons = Function<std::string, char, std::string>(cons_str);
 	auto pair = uncons_str(str);
 	return
-		Parser<char>(character(pair.first)) >>=
-		Parser<std::string>(string(pair.second)) >>=
-		Pcons;
+		character(pair.first) >>=
+		string(pair.second) >>=
+		Fcons;
 }
 
 Reaction<std::string> fcl::ident(std::string inp)
 {
 	const static auto M =
-		Parser<char>(lower) >>=
-		any(Parser<char>(alphanumeric)) >>=
-		Monad<Parser>::pure(Function<std::string, char, std::string>(cons_str))
+		lower >>=
+		any(alphanumeric) >>=
+		Function<std::string, char, std::string>(cons_str)
 		;
 
 	return parse(M, inp);
@@ -109,9 +109,8 @@ Reaction<std::string> fcl::ident(std::string inp)
 Reaction<int> fcl::nat(std::string inp)
 {
 	const static auto M =
-		some(Parser<char>(digit))
-		>>=
-		Monad<Parser>::pure(Function<int, std::string>([](std::string str)->int {return std::stoi(str); }))
+		some(Parser<char>(digit)) >>=
+		Function<int, std::string>([](std::string str)->int {return std::stoi(str); })
 		;
 
 	return parse(M, inp);
@@ -123,7 +122,7 @@ Reaction<int> fcl::inte(std::string inp)
 		(
 			character('-') >>
 			Parser<int>(nat) >>=
-			Monad<Parser>::pure<Function<int, int>>([](int n) { return -1 * n; })
+			Function<int, int>([](int n) { return -1 * n; })
 			)
 		||
 		Parser<int>(nat)
@@ -136,7 +135,7 @@ Reaction<NA> fcl::space(std::string inp)
 {
 	const static auto M =
 		any(sat(Function<bool, char>([](char c)->bool { return isspace(c); }))) >>
-		Monad<Parser>::pure<NA>(NA())
+		NA()
 		;
 
 	return parse(M, inp);
@@ -144,23 +143,23 @@ Reaction<NA> fcl::space(std::string inp)
 
 Reaction<std::string> fcl::identifier(std::string inp)
 {
-	const static auto M = token(Parser<std::string>(ident));
+	const static auto M = token<std::string>(ident);
 	return parse(M, inp);
 }
 
 Reaction<int> fcl::natural(std::string inp)
 {
-	const static auto M = token(Parser<int>(nat));
+	const static auto M = token<int>(nat);
 	return parse(M, inp);
 }
 
 Reaction<int> fcl::integer(std::string inp)
 {
-	const static auto M = token(Parser<int>(inte));
+	const static auto M = token<int>(inte);
 	return parse(M, inp);
 }
 
-Parser<std::string> fcl::symbol(std::string str) { return token(Parser<std::string>(string(str))); }
+Parser<std::string> fcl::symbol(std::string str) { return token<std::string>(string(str)); }
 
 std::string fcl::cons_str(char c, std::string str) { return c + str; }
 
@@ -171,24 +170,24 @@ Pair<char, std::string> fcl::uncons_str(std::string str)
 
 std::string fcl::concat_str(std::string a, std::string b) { return a + b; }
 
-Reaction<std::string> maybe_one_impl(Parser<char> p, std::string inp)
-{
-	auto r = parse(p, inp);
-	if (isNothing(r)) return std::make_pair<std::string, std::string>("", std::move(inp));
-	auto pair = fromJust(r);
-	return std::make_pair<std::string, std::string>(std::string(1, pair.first), std::move(pair.second));
-}
-
 Parser<std::string> fcl::maybe_one(Parser<char> p)
 {
-	const static auto F = Function<Reaction<std::string>, Parser<char>, std::string>(maybe_one_impl);
-	return F << p;
+	const static Function<Reaction<std::string>, Parser<char>, std::string> maybe_one_impl =
+		[](Parser<char> p1, std::string inp)->Reaction<std::string>
+	{
+		auto r = parse(p1, inp);
+		if (isNothing(r)) return std::make_pair<std::string, std::string>("", std::move(inp));
+		auto pair = fromJust(r);
+		return std::make_pair<std::string, std::string>(std::string(1, pair.first), std::move(pair.second));
+	};
+
+	return maybe_one_impl << p;
 }
 
 Parser<std::string> fcl::any(Parser<char> p)
 {
 	const static Function<Reaction<std::string>, Parser<char>, std::string> any_impl =
-		[](Parser<char> p, std::string inp)->Reaction<std::string> 
+		[](Parser<char> p, std::string inp)->Reaction<std::string>
 	{
 		auto reaction = parse(p, inp);
 		if (isNothing(reaction))
@@ -211,7 +210,7 @@ Parser<std::string> fcl::any(Parser<char> p)
 
 Parser<std::string> fcl::some(Parser<char> p)
 {
-	const static auto Mcons = Monad<Parser>::pure(Function<std::string, char, std::string>(cons_str));
+	const static auto Mcons = Function<std::string, char, std::string>(cons_str);
 	return
 		p >>=
 		any(p) >>=

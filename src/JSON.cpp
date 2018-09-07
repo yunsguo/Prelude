@@ -1,6 +1,4 @@
 #include "JSON.h"
-
-
 #include <iostream>
 
 using namespace JSON;
@@ -10,7 +8,7 @@ fcl::Reaction<Null> JSON::null(std::string inp)
 {
 	const static auto M =
 		fcl::string("null") >>
-		fcl::Monad<fcl::Parser>::pure<Null>(Null())
+		Null()
 		;
 	return fcl::parse(M, inp);
 }
@@ -19,7 +17,7 @@ fcl::Reaction<True> JSON::bool_true(std::string inp)
 {
 	const static auto M =
 		fcl::string("true") >>
-		fcl::Monad<fcl::Parser>::pure<True>(True())
+		True()
 		;
 	return fcl::parse(M, inp);
 }
@@ -28,7 +26,7 @@ fcl::Reaction<False> JSON::bool_false(std::string inp)
 {
 	const static auto M =
 		fcl::string("false") >>
-		fcl::Monad<fcl::Parser>::pure<False>(False())
+		False()
 		;
 	return fcl::parse(M, inp);
 }
@@ -39,11 +37,11 @@ fcl::Reaction<std::string> JSON::integer(std::string inp)
 		maybe_one(fcl::character('-')) >>=
 		(
 			fcl::string("0") || (
-				Parser<char>(digit19) >>=
+				digit19 >>=
 				any(digit) >>=
-				Monad<Parser>::pure<Function<std::string, char, std::string>>(cons_str)
+				Function<std::string, char, std::string>(cons_str)
 				)) >>=
-		Monad<Parser>::pure<Function<std::string, std::string, std::string>>(concat_str);
+		Function<std::string, std::string, std::string>(concat_str);
 
 	return fcl::parse(M, inp);
 }
@@ -53,7 +51,7 @@ fcl::Reaction<std::string> JSON::decimal(std::string inp)
 	const static auto M =
 		(fcl::character('.') >>=
 			some(digit) >>=
-			Monad<Parser>::pure<Function<std::string, char, std::string>>(cons_str)) ||
+			Function<std::string, char, std::string>(cons_str)) ||
 		Monad<Parser>::pure<std::string>("");
 
 	return fcl::parse(M, inp);
@@ -65,7 +63,7 @@ fcl::Reaction<std::string> JSON::exponent(std::string inp)
 		((fcl::character('e') || fcl::character('E')) >>=
 			maybe_one(sat([](char c)->bool {return c == '+' || c == '-'; })) >>=
 			some(digit) >>=
-			Monad<Parser>::pure<Function<std::string, char, std::string, std::string>>
+			Function<std::string, char, std::string, std::string>
 			([](char e, std::string p, std::string q)->std::string { return e + p + q; })) ||
 		Monad<Parser>::pure<std::string>("");
 
@@ -75,9 +73,9 @@ fcl::Reaction<std::string> JSON::exponent(std::string inp)
 fcl::Reaction<Number> JSON::number(std::string inp)
 {
 	const static auto M =
-		Parser<std::string>(JSON::integer) >>=
-		Parser<std::string>(JSON::decimal) >>=
-		Parser<std::string>(JSON::exponent) >>=
+		JSON::integer >>=
+		JSON::decimal >>=
+		JSON::exponent >>=
 		Monad<Parser>::pure<Function<std::string, std::string, std::string, std::string>>
 		([](std::string s1, std::string s2, std::string s3)->std::string {return s1 + s2 + s3; });
 
@@ -127,7 +125,7 @@ fcl::Reaction<String> JSON::string(std::string inp)
 		fcl::character('\"') >>
 		fcl::any<char32_t>(JSON::character) >>=
 		fcl::character('\"') >>
-		Monad<Parser>::pure<Function<fcl::List<char32_t>, fcl::List<char32_t>>>(fcl::id<fcl::List<char32_t>>);
+		Function<fcl::List<char32_t>, fcl::List<char32_t>>(fcl::id<fcl::List<char32_t>>);
 	auto reaction = parse(M, inp);
 	if (isNothing(reaction)) return Nothing();
 	auto pair = fromJust(reaction);
@@ -166,12 +164,12 @@ fcl::Reaction<Array> JSON::array(std::string inp)
 	const static auto M =
 		fcl::character('[') >>
 		fcl::any<Value>(
-			Parser<Value>(JSON::value) >>=
-			fcl::character(',') >>
-			Monad<Parser>::pure<Function<Value, Value>>(fcl::id<Value>)
+			JSON::value >>=
+			fcl::maybe_one(fcl::character(',')) >>
+			Function<Value, Value>(fcl::id<Value>)
 			) >>=
 		fcl::character(']') >>
-		Monad<Parser>::pure<Function<fcl::List<Value>, fcl::List<Value>>>(fcl::id<fcl::List<Value>>);
+		Function<fcl::List<Value>, fcl::List<Value>>(fcl::id<fcl::List<Value>>);
 	auto reaction = parse(M, inp);
 	if (isNothing(reaction)) return Nothing();
 	auto pair = fromJust(reaction);
@@ -192,7 +190,7 @@ fcl::Reaction<Object> JSON::object(std::string inp)
 			Parser<String>(JSON::string) >>=
 			fcl::character(':') >>
 			Parser<Value>(JSON::value) >>=
-			fcl::character(',') >>
+			fcl::maybe_one(fcl::character(',')) >>
 			Monad<Parser>::pure<Function<Pair<String, Value>, String, Value>>(JSON::pair)
 			) >>=
 		fcl::character('}') >>
@@ -202,9 +200,35 @@ fcl::Reaction<Object> JSON::object(std::string inp)
 	if (isNothing(reaction)) return Nothing();
 	auto pair = fromJust(reaction);
 
-	return std::make_pair<Object, std::string>(Object{std::move(pair.first)},std::move(pair.second));
+	return std::make_pair<Object, std::string>(Object{ std::move(pair.first) }, std::move(pair.second));
 }
 
+//type inference for JSON types
+template<>
+struct util::type<JSON::True> { static std::string infer() { return "True"; } };
+
+template<>
+struct util::type<JSON::False> { static std::string infer() { return "False"; } };
+
+template<>
+struct util::type<JSON::Null> { static std::string infer() { return "Null"; } };
+
+template<>
+struct util::type<JSON::String> { static std::string infer() { return "String"; } };
+
+template<>
+struct util::type<JSON::Number> { static std::string infer() { return "Number"; } };
+
+template<>
+struct util::type<JSON::Array> { static std::string infer() { return "Array"; } };
+
+template<>
+struct util::type<JSON::Object> { static std::string infer() { return "Object"; } };
+
+template<>
+struct util::type<JSON::Value> { static std::string infer() { return "Value"; } };
+
+// JSON Show implenmentations
 template<>
 struct fcl::Show<JSON::True>
 {
@@ -240,32 +264,39 @@ struct fcl::Show<JSON::Number>
 	inline static std::string show(const JSON::Number& value) { return std::to_string(value.value); }
 };
 
-//template<>
-//struct fcl::Show<JSON::Value>
-//{
-//	using pertain = std::true_type;
-//	inline static std::string show(const JSON::Value& value) { return fcl::Show<JSON::VD>::show(value.value); }
-//};
+template<>
+struct fcl::Show<JSON::Value>
+{
+	using pertain = std::true_type;
+	static std::string show(const JSON::Value& value);
+};
 
-//template<>
-//struct fcl::Show<JSON::Array>
-//{
-//	using pertain = std::true_type;
-//	inline static std::string show(const JSON::Array& value) { return fcl::Show<fcl::List<Value>>::show(value.value); }
-//};
-//
-//template<>
-//struct fcl::Show<JSON::Object>
-//{
-//	using pertain = std::true_type;
-//	inline static std::string show(const JSON::Object& value) { return fcl::Show<fcl::List<Pair<String, Value>>>::show(value.value); }
-//};
+template<>
+struct fcl::Show<JSON::Array>
+{
+	using pertain = std::true_type;
+	inline static std::string show(const JSON::Array& value);
+};
 
+template<>
+struct fcl::Show<JSON::Object>
+{
+	using pertain = std::true_type;
+	inline static std::string show(const JSON::Object& value);
+};
+
+std::string fcl::Show<JSON::Value>::show(const JSON::Value & value) { return fcl::Show<JSON::VD>::show(value.value); }
+
+std::string fcl::Show<JSON::Array>::show(const JSON::Array & value) { return fcl::Show<fcl::List<JSON::Value>>::show(value.value); }
+
+std::string fcl::Show<JSON::Object>::show(const JSON::Object & value) { return fcl::Show<fcl::List<Pair<JSON::String, JSON::Value>>>::show(value.value); }
+
+#ifdef JSON_CPP
 
 template<typename a>
 void display_parse(Parser<a> p, std::string str)
 {
-	std::cout << "parse \"" << str << "\": " << parse(p, str) << std::endl;
+	std::cout << "parse \"" << str << "\" as " << util::type<a>::infer() << ": " << std::endl << parse(p, str) << std::endl << std::endl;
 }
 
 
@@ -277,4 +308,17 @@ int main()
 	display_parse<Number>(number, "686.97 365.24");
 	display_parse<Number>(number, "null");
 	display_parse<String>(JSON::string, "\"null\"");
+	display_parse<Array>(JSON::array, "[\"Ford\",\"BMW\",\"Fiat\"]");
+	display_parse<Array>(JSON::array, "[]");
+	display_parse<Object>(JSON::object, "{\"name\":\"John\",\"age\":30,\"cars\":[\"Ford\",\"BMW\",\"Fiat\"]}");
+	display_parse<Object>(JSON::object, "{}");
+	display_parse<Value>(JSON::value, "\"null\"");
+	display_parse<Value>(JSON::value, "false");
+	display_parse<Value>(JSON::value, "true");
+	display_parse<Value>(JSON::value, "null");
+	display_parse<Value>(JSON::value, "686.97");
+	display_parse<Value>(JSON::value, "{\"glossary\":{\"title\":\"exampleglossary\",\"GlossDiv\":{\"title\":\"S\",\"GlossList\":{\"GlossEntry\":{\"ID\":\"SGML\",\"SortAs\":\"SGML\",\"GlossTerm\":\"StandardGeneralizedMarkupLanguage\",\"Acronym\":\"SGML\",\"Abbrev\":\"ISO8879:1986\",\"GlossDef\":{\"para\":\"Ameta-markuplanguage,usedtocreatemarkuplanguagessuchasDocBook.\",\"GlossSeeAlso\":[\"GML\",\"XML\"]},\"GlossSee\":\"markup\"}}}}}");
+
 }
+
+#endif

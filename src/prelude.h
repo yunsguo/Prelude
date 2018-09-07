@@ -216,6 +216,9 @@ namespace fcl
 		}
 	};
 
+	template<template<typename> typename F, typename f, typename = std::enable_if_t<Functor<F>::pertain::value && is_function<f>::value>>
+	F<applied_type<f>> operator<<=(const f& func, const F<head_parameter<f>>& ff) { return Functor<F>::fmap<f>(func, ff); }
+
 	template<template<typename> typename A>
 	struct Applicative
 	{
@@ -229,7 +232,10 @@ namespace fcl
 	};
 
 	template<template<typename> typename A, typename f, typename = std::enable_if_t<Applicative<A>::pertain::value && is_function<f>::value>>
-	A<applied_type<f>> operator<<(const A<f>& af, const A<head_parameter<f>>& aa) { return Applicative<A>::sequence<f>(af, aa); }
+	A<applied_type<f>> operator<<=(const A<f>& af, const A<head_parameter<f>>& aa) { return Applicative<A>::sequence<f>(af, aa); }
+
+	template<template<typename> typename A, typename f, typename = std::enable_if_t<Applicative<A>::pertain::value && is_function<f>::value && !Functor<A>::pertain::value>, size_t = 0>
+	A<applied_type<f>> operator<<=(const f& func, const A<head_parameter<f>>& aa) { return Applicative<A>::sequence<f>(Applicative<A>::pure<f>(func), aa); }
 
 	template<template<typename> typename A>
 	struct Alternative
@@ -264,8 +270,17 @@ namespace fcl
 	template<template<typename> typename M, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value>>
 	M<monadic_applied_type<f>> operator>>=(const M<last_parameter<f>>& ma, const M<f>& func) { return Monad<M>::sequence<f>(ma, func); }
 
+	template<template<typename> typename M, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value>, size_t = 0>
+	M<monadic_applied_type<f>> operator>>=(const M<last_parameter<f>>& ma, const f& func) { return Monad<M>::sequence<f>(ma, Monad<M>::pure<f>(func)); }
+	
+	template<typename a, template<typename> typename M, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value && std::is_convertible<a, M<last_parameter<f>>>::value>>
+	M<monadic_applied_type<f>> operator>>=(const a& ma, const M<f>& func) { return Monad<M>::sequence<f>(ma, func); }
+
 	template<template<typename> typename M, typename a, typename b, typename = std::enable_if_t<Monad<M>::pertain::value>>
 	M<b> operator>>(const M<a>& p, const M<b>& q) { return Monad<M>::compose(p, q); }
+
+	template<template<typename> typename M, typename a, typename b, typename = std::enable_if_t<Monad<M>::pertain::value>, size_t = 0>
+	M<b> operator>>(const M<a>& p, const b& q) { return Monad<M>::compose(p, Monad<M>::pure<b>(q)); }
 
 	template<typename a>
 	struct Just
@@ -375,6 +390,7 @@ namespace fcl
 	struct Show<Maybe<a>>
 	{
 		using pertain = std::true_type;
+
 		static std::string show(const Maybe<a>& value)
 		{
 			static_assert(Show<a>::pertain::value, "Maybe<a> is not of Show because a is not of Show.");
@@ -464,7 +480,7 @@ namespace fcl
 
 	private:
 
-		static std::string content(Tuple<a> value) 
+		static std::string content(Tuple<a> value)
 		{
 			static_assert(Show<a>::pertain::value, "Tuple<a> is not of Show because a is not of Show.");
 			return Show<a>::show(std::get<0>(value));
@@ -472,7 +488,7 @@ namespace fcl
 
 	public:
 
-		static std::string show(const Tuple<a>& value) 
+		static std::string show(const Tuple<a>& value)
 		{
 			static_assert(Show<a>::pertain::value, "Tuple<a> is not of Show because a is not of Show.");
 			return "(" + content(value) + ")";
@@ -484,10 +500,10 @@ namespace fcl
 	{
 		using pertain = std::true_type;
 
-		static std::string show(const Pair<a, b>& value) 
+		static std::string show(const Pair<a, b>& value)
 		{
 			static_assert(details::are_show<a, b>::value, "Pair<a,b> is not of Show because a or b are not all of Show.");
-			return "(" + Show<a>::show(value.first) + ", " + Show<b>::show(value.second) + ")"; 
+			return "(" + Show<a>::show(value.first) + ", " + Show<b>::show(value.second) + ")";
 		}
 	};
 
@@ -505,7 +521,7 @@ namespace fcl
 		}
 
 	public:
-		static std::string show(const Tuple<a, as...>& value) 
+		static std::string show(const Tuple<a, as...>& value)
 		{
 			static_assert(details::are_show<a, as...>::value, "Tuple<a,as...> is not of Show because a,as... are not all of Show.");
 			return "(" + content(value) + ")";
@@ -551,7 +567,7 @@ namespace fcl
 		}
 
 	public:
-		static std::string show(const V& value) 
+		static std::string show(const V& value)
 		{
 			static_assert(details::are_show<a, b, rest...>::value, "variant<a, b, rest...> is not of Show because a, b, rest... are not all of Show.");
 			return show_impl<0>(value);
@@ -561,11 +577,11 @@ namespace fcl
 	template<typename a>
 	struct Show<List<a>>
 	{
-		using pertain = typename Show<a>::pertain;
+		using pertain = std::true_type;
 
-		template<typename = std::enable_if_t<pertain::value>>
 		static std::string show(const List<a>& value)
 		{
+			static_assert(Show<a>::pertain::value, "List<a> is not of Show because a is not of Show.");
 			if (value.size() == 0) return "[]";
 			if (value.size() == 1)
 				return "[" + Show<a>::show(value.front()) + "]";

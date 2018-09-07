@@ -12,11 +12,9 @@ namespace JSON
 	struct True {};
 	struct False {};
 	struct Null {};
+
 	struct String { List<char32_t> value; };
-	struct Number
-	{
-		float value;
-	};
+	struct Number { float value; };
 
 	struct Array;
 	struct Object;
@@ -29,6 +27,7 @@ namespace JSON
 	using VD = fcl::variant<String, Number, Object, Array, True, False, Null>;
 
 	struct Value { VD value; };
+
 
 	fcl::Reaction<Null> null(std::string inp);
 
@@ -53,7 +52,7 @@ namespace JSON
 	fcl::Reaction<String> string(std::string inp);
 
 	template<typename a, typename = std::enable_if_t<fcl::variant_traits<VD>::elem<a>::value>>
-	Value boxing(a var);
+	Value boxing(a var) { return Value{ VD(std::move(var)) }; }
 
 	fcl::Reaction<Value> value(std::string inp);
 
@@ -62,9 +61,6 @@ namespace JSON
 	Pair<String, Value> pair(String str, Value val);
 
 	fcl::Reaction<Object> object(std::string inp);
-
-	template<typename a, typename>
-	Value boxing(a var) { return Value{ VD(std::move(var)) }; }
 }
 
 #endif
