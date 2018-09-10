@@ -134,6 +134,9 @@ namespace TMP
 	template<typename ... as>
 	struct to_tuple<Pack<as...>> { using type = std::tuple<as...>; };
 
+	template<typename a>
+	using to_tuple_t = typename to_tuple<a>::type;
+
 	//meta function concatenating two list
 	template<typename a, typename b>
 	struct concat { using type = typename concat<list_trait_t<a>, list_trait_t<b>>::type; };
@@ -242,6 +245,9 @@ namespace TMP
 	template<typename a, typename b>
 	struct take<Cons<a, b>, 0> { using type = Nil; };
 
+	template<typename a, size_t N>
+	using take_t = typename take<a, N>::type;
+
 	//returns the suffix of xs after the first n elements, or [] if n > length xs
 	template<typename a, size_t N>
 	struct drop { using type = typename drop<typename list_trait<a>::type, N>::type; };
@@ -254,6 +260,9 @@ namespace TMP
 
 	template<typename a, typename b>
 	struct drop<Cons<a, b>, 0> { using type = Cons<a, b>; };
+
+	template<typename a, size_t N>
+	using drop_t = typename drop<a, N>::type;
 
 	//Returns the size/length of a finite structure as an Int.
 	template<typename a>
