@@ -134,7 +134,6 @@ namespace fcl
 		return as;
 	}
 
-
 	//generic list uncons method
 	template<typename a>
 	Pair<a, List<a>> uncons(List<a> as)
@@ -145,7 +144,7 @@ namespace fcl
 	}
 
 	template<typename a>
-	a id(a value) { return std::move(value); }
+	a id(a value) { return value; }
 
 	template<typename a>
 	struct Eq
@@ -153,10 +152,10 @@ namespace fcl
 		using pertain = std::bool_constant<std::is_arithmetic<a>::value || Ord<a>::pertain::value>;
 
 		template<typename = std::enable_if_t<std::is_arithmetic<a>::value>>
-		static bool equals(a one, a other) { return one == other; }
+		static bool equals(const a& one, const a& other) { return one == other; }
 
 		template<typename = std::enable_if_t<!std::is_arithmetic<a>::value && Ord<a>::pertain::value>, size_t = 0>
-		static bool equals(a one, a other) { return Ord<a>::compare(one, other) == Ordering::EQ; }
+		static bool equals(const a& one, const a& other) { return Ord<a>::compare(one, other) == Ordering::EQ; }
 	};
 
 	template<typename a, typename = std::enable_if_t<Eq<a>::pertain::value && !std::is_arithmetic<a>::value>>
@@ -169,14 +168,13 @@ namespace fcl
 	struct Ord
 	{
 		using pertain = std::is_arithmetic<a>;
-		static Ordering compare(a one, a other)
+		static Ordering compare(const a& one, const a& other)
 		{
 			if (one > other)return Ordering::GT;
 			if (one == other) return Ordering::EQ;
 			return Ordering::LT;
 		}
 	};
-
 
 	template<typename a, typename = std::enable_if_t<Ord<a>::pertain::value>>
 	bool operator<=(const a& one, const a& other) { return Ord<a>::compare(one, other) != Ordering::GT; }
@@ -204,35 +202,56 @@ namespace fcl
 	std::ostream& operator<<(std::ostream& out, const a& value) { return out << Show<a>::show(value); }
 #endif
 
+	template<typename a>
+	struct Monoid {};
+
+	template<template<typename> typename I>
+	struct Injector
+	{
+		using pertain = std::false_type;
+
+		template<typename a>
+		static I<a> pure(a&&);
+	};
+
 	template<template<typename> typename F>
 	struct Functor
 	{
 		using pertain = std::false_type;
 
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-		static F<applied_type<f>> fmap(const f& func, const F<head_parameter<f>>& fa);
+		static F<applied_type<f>> fmap(const f& func, F<head_parameter<f>>&& fa);
+
+		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
+		static F<monadic_applied_type<f>> monadic_fmap(const f& func, F<last_parameter<f>>&& fa);
 	};
 
 	template<template<typename> typename F, typename f, typename = std::enable_if_t<Functor<F>::pertain::value && is_function<f>::value>>
-	F<applied_type<f>> operator<<=(const f& func, const F<head_parameter<f>>& ff) { return Functor<F>::fmap<f>(func, ff); }
+	F<applied_type<f>> operator<<=(f func, F<head_parameter<f>> ff)
+	{
+		return Functor<F>::fmap<f>(std::move(func), std::move(ff));
+	}
+
+	template<template<typename> typename F, typename f, typename = std::enable_if_t<Functor<F>::pertain::value && is_function<f>::value>>
+	F<monadic_applied_type<f>> operator>>=(F<last_parameter<f>> ff, f func)
+	{
+		return Functor<F>::monadic_fmap<f>(std::move(func), std::move(ff));
+	}
 
 	template<template<typename> typename A>
 	struct Applicative
 	{
 		using pertain = std::false_type;
 
-		template<typename a, typename = std::enable_if_t<is_function<f>::value>>
-		static A<a> pure(const a&);
-
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-		static A<applied_type<f>> sequence(const A<f>&, const A<head_parameter<f>>&);
+		static A<applied_type<f>> sequence(A<f>&&, A<head_parameter<f>>&&);
 	};
 
 	template<template<typename> typename A, typename f, typename = std::enable_if_t<Applicative<A>::pertain::value && is_function<f>::value>>
-	A<applied_type<f>> operator<<=(const A<f>& af, const A<head_parameter<f>>& aa) { return Applicative<A>::sequence<f>(af, aa); }
-
-	template<template<typename> typename A, typename f, typename = std::enable_if_t<Applicative<A>::pertain::value && is_function<f>::value && !Functor<A>::pertain::value>, size_t = 0>
-	A<applied_type<f>> operator<<=(const f& func, const A<head_parameter<f>>& aa) { return Applicative<A>::sequence<f>(Applicative<A>::pure<f>(func), aa); }
+	A<applied_type<f>> operator<<=(A<f> af, A<head_parameter<f>> aa)
+	{
+		return Applicative<A>::sequence<f>(std::move(af), std::move(aa));
+	}
 
 	template<template<typename> typename A>
 	struct Alternative
@@ -243,41 +262,51 @@ namespace fcl
 		static A<a> empty();
 
 		template<typename a>
-		static A<a> alter(const A<a>&, const A<a>&);
+		static A<a> alter(A<a>&&, A<a>&&);
 	};
 
 	template<template<typename> typename A, typename a, typename = std::enable_if_t<Alternative<A>::pertain::value>>
-	A<a> operator||(const A<a>& p, const A<a>& q) { return Alternative<A>::alter(p, q); }
+	A<a> operator||(A<a> p, A<a> q)
+	{
+		return Alternative<A>::alter(std::move(p), std::move(q));
+	}
 
 	template<template<typename> typename M>
 	struct Monad
 	{
 		using pertain = std::false_type;
 
-		template<typename a>
-		static M<a> pure(const a&);
-
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-		static M<monadic_applied_type<f>> sequence(const M<last_parameter<f>>&, const M<f>&);
+		static M<monadic_applied_type<f>> sequence(M<f>&&, M<last_parameter<f>>&&);
 
 		template<typename a, typename b>
-		static M<b> compose(const M<a>&, const M<b>&);
+		static M<b> compose(M<a>&&, M<b>&&);
 	};
 
 	template<template<typename> typename M, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value>>
-	M<monadic_applied_type<f>> operator>>=(const M<last_parameter<f>>& ma, const M<f>& func) { return Monad<M>::sequence<f>(ma, func); }
+	M<monadic_applied_type<f>> operator>>=(M<last_parameter<f>> ma, M<f> func)
+	{
+		return Monad<M>::sequence<f>(std::move(func), std::move(ma));
+	}
 
-	template<template<typename> typename M, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value>, size_t = 0>
-	M<monadic_applied_type<f>> operator>>=(const M<last_parameter<f>>& ma, const f& func) { return Monad<M>::sequence<f>(ma, Monad<M>::pure<f>(func)); }
-	
 	template<typename a, template<typename> typename M, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value && std::is_convertible<a, M<last_parameter<f>>>::value>>
-	M<monadic_applied_type<f>> operator>>=(const a& ma, const M<f>& func) { return Monad<M>::sequence<f>(ma, func); }
+	M<monadic_applied_type<f>> operator>>=(a ma, M<f> func)
+	{
+		const static auto convert = [](a var)->M<last_parameter<f>> {return var; };
+		return Monad<M>::sequence<f>(std::move(func), convert(ma));
+	}
 
 	template<template<typename> typename M, typename a, typename b, typename = std::enable_if_t<Monad<M>::pertain::value>>
-	M<b> operator>>(const M<a>& p, const M<b>& q) { return Monad<M>::compose(p, q); }
+	M<b> operator>>(M<a> p, M<b> q)
+	{
+		return Monad<M>::compose(std::move(p), std::move(q));
+	}
 
-	template<template<typename> typename M, typename a, typename b, typename = std::enable_if_t<Monad<M>::pertain::value>, size_t = 0>
-	M<b> operator>>(const M<a>& p, const b& q) { return Monad<M>::compose(p, Monad<M>::pure<b>(q)); }
+	template<template<typename> typename M, typename a, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value>>
+	M<f> operator>>(M<a> p, f q)
+	{
+		return Monad<M>::compose(std::move(p), Injector<M>::pure<f>(std::move(q)));
+	}
 
 	template<typename a>
 	struct Just
@@ -318,10 +347,13 @@ namespace fcl
 	bool isNothing(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::is_of<Nothing>(ma); }
 
 	template<typename a>
-	a fromJust(Maybe<a> ma) { return variant_traits<Maybe<a>>::move<Just<a>>(ma).value; }
+	a fromJust(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::get<Just<a>>(ma).value; }
 
 	template<typename a>
-	a fromMaybe(a default_r, Maybe<a> ma) { isNothing(ma) ? default_r : variant_traits<Maybe<a>>::move<Just<a>>(ma).value; }
+	a fromJust(Maybe<a>&& ma) { return variant_traits<Maybe<a>>::move<Just<a>>(ma).value; }
+
+	template<typename a>
+	a fromMaybe(a default_r, const Maybe<a>& ma) { isNothing(ma) ? default_r : variant_traits<Maybe<a>>::get<Just<a>>(ma).value; }
 
 	//Maybe variant traits implenmentation
 	template<typename a>
@@ -355,7 +387,7 @@ namespace fcl
 		using pertain = typename Eq<a>::pertain;
 
 		template<typename = std::enable_if_t<pertain::value>>
-		static bool equals(Maybe<a> one, Maybe<a> other)
+		static bool equals(const Maybe<a>& one, const  Maybe<a>& other)
 		{
 			if (isJust(one) && isJust(other)) return Eq<a>::equals(fromJust(one), fromJust(other));
 			if (isNothing(one) && isNothing(other)) return true;
@@ -370,7 +402,7 @@ namespace fcl
 		using pertain = typename Ord<a>::pertain;
 
 		template<typename = std::enable_if_t<pertain::value>>
-		static Ordering compare(Maybe<a> one, Maybe<a> other)
+		static Ordering compare(const Maybe<a>& one, const Maybe<a>& other)
 		{
 			if (isJust(one))
 			{
@@ -392,8 +424,19 @@ namespace fcl
 		{
 			static_assert(Show<a>::pertain::value, "Maybe<a> is not of Show because a is not of Show.");
 			if (isNothing(value)) return "Nothing";
-			return "Just " + Show<a>::show(fromJust(value));
+			return "Just " + Show<a>::show(variant_traits<Maybe<a>>::get<Just<a>>(value).value);
 		}
+	};
+
+	//Maybe Injector typeclass implenmentation
+	template<>
+	struct Injector<Maybe>
+	{
+		using pertain = std::true_type;
+
+		template<typename a>
+		static Maybe<a> pure(a&& ma) { return Maybe<a>(ma); }
+
 	};
 
 	//Maybe Functor typeclass implenmentation
@@ -403,10 +446,17 @@ namespace fcl
 		using pertain = std::true_type;
 
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-		static Maybe<applied_type<f>> fmap(const f& func, const Maybe<head_parameter<f>>& ma)
+		static Maybe<applied_type<f>> fmap(const f& func, Maybe<head_parameter<f>>&& ma)
 		{
 			if (isNothing(ma)) return Nothing();
-			return Just<applied_type<f>>{func << fromJust(ma)};
+			return function_traits<f>::apply(func, fromJust(std::forward<Maybe<head_parameter<f>>>(ma)));
+		}
+
+		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
+		static Maybe<monadic_applied_type<f>> monadic_fmap(const f& func, Maybe<last_parameter<f>>&& ma)
+		{
+			if (isNothing(ma)) return Nothing();
+			return function_traits<f>::monadic_apply(func, fromJust(std::forward<Maybe<last_parameter<f>>>(ma)));
 		}
 	};
 
@@ -416,14 +466,11 @@ namespace fcl
 	{
 		using pertain = std::true_type;
 
-		template<typename a>
-		static Maybe<a> pure(const a& value) { return Maybe<a>(value); }
-
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-		static Maybe<applied_type<f>> sequence(const Maybe<f>& mfunc, const Maybe<head_parameter<f>>& ma)
+		static Maybe<applied_type<f>> sequence(Maybe<f>&& mfunc, Maybe<head_parameter<f>>&& ma)
 		{
-			if (isNothing(mfunc)) return Nothing();
-			return Functor<Maybe>::fmap(fromJust(mfunc), ma);
+			if (isNothing(mfunc) || isNothing(ma)) return Nothing();
+			return function_traits<f>::apply(fromJust(std::forward<Maybe<f>>(mfunc)), fromJust(std::forward<Maybe<head_parameter<f>>>(ma)));
 		}
 	};
 
@@ -437,7 +484,7 @@ namespace fcl
 		static Maybe<a> empty() { return Nothing(); }
 
 		template<typename a>
-		static Maybe<a> alter(const Maybe<a>& p, const Maybe<a>& q) { if (isJust(p)) return p; return q; }
+		static Maybe<a> alter(Maybe<a>&& p, Maybe<a>&& q) { if (isJust(p)) return p; return q; }
 	};
 
 	//Maybe Monad typeclass implenmentation
@@ -446,18 +493,18 @@ namespace fcl
 	{
 		using pertain = std::true_type;
 
-		template<typename a>
-		static Maybe<a> pure(const a& value) { return Applicative<Maybe>::pure<a>(value); }
-
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-		static Maybe<monadic_applied_type<f>> sequence(const Maybe<last_parameter<f>>& ma, const Maybe<f>& mfunc)
+		static Maybe<monadic_applied_type<f>> sequence(Maybe<f>&& mfunc, Maybe<last_parameter<f>>&& ma)
 		{
 			if (isNothing(ma) || isNothing(mfunc)) return Nothing();
-			return Just<monadic_applied_type<f>>{fromJust(ma) >>= fromJust(mfunc)};
+			return function_traits<f>::monadic_apply(fromJust(std::forward<Maybe<f>>(mfunc)), fromJust(std::forward<Maybe<last_parameter<f>>>(ma)));
 		}
 
 		template<typename a, typename b>
-		static Maybe<b> compose(const Maybe<a>& p, const Maybe<b>& q) { return Alternative<Maybe>::alter(p, q); }
+		static Maybe<b> compose(Maybe<a>&& p, Maybe<b>&& q)
+		{
+			return q;
+		}
 	};
 
 	//Show typeclass common implenmentations
@@ -475,15 +522,11 @@ namespace fcl
 	{
 		using pertain = std::true_type;
 
-	private:
-
 		static std::string content(Tuple<a> value)
 		{
 			static_assert(Show<a>::pertain::value, "Tuple<a> is not of Show because a is not of Show.");
 			return Show<a>::show(std::get<0>(value));
 		}
-
-	public:
 
 		static std::string show(const Tuple<a>& value)
 		{
@@ -508,8 +551,6 @@ namespace fcl
 	struct Show<Tuple<a, as...>>
 	{
 		using pertain = std::true_type;
-
-	private:
 		static std::string content(Tuple<a, as...> value)
 		{
 			static_assert(details::are_show<a, as...>::value, "Tuple<a,as...> is not of Show because a,as... are not all of Show.");
@@ -517,7 +558,6 @@ namespace fcl
 			return first + ", " + Show<Tuple<as...>>::content(details::tail(std::move(value)));
 		}
 
-	public:
 		static std::string show(const Tuple<a, as...>& value)
 		{
 			static_assert(details::are_show<a, as...>::value, "Tuple<a,as...> is not of Show because a,as... are not all of Show.");
@@ -545,7 +585,6 @@ namespace fcl
 		using pertain = std::true_type;
 		using V = variant<a, b, rest...>;
 
-	private:
 		template<size_t I, typename = std::enable_if_t<I == TMP::length<V>::value>>
 		static std::string show_impl(const V& value)
 		{
@@ -563,7 +602,6 @@ namespace fcl
 			return show_impl<I + 1>(value);
 		}
 
-	public:
 		static std::string show(const V& value)
 		{
 			static_assert(details::are_show<a, b, rest...>::value, "variant<a, b, rest...> is not of Show because a, b, rest... are not all of Show.");

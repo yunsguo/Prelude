@@ -72,9 +72,9 @@ namespace fcl
 		//laster parameter, first for monadic
 		using last = NA;
 
-		static applied apply(const f&, const head&);
+		static applied apply(const f&, head&&);
 
-		static monadic_applied monadic_apply(const f&, const last&);
+		static monadic_applied monadic_apply(const f&, last&&);
 
 	};
 
@@ -97,15 +97,29 @@ namespace fcl
 	using last_parameter = typename function_traits<f>::last;
 
 	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-	applied_type<f> operator<<(const f& func,const head_parameter<f>& arg)
+	applied_type<f> operator<<(const f& func, head_parameter<f>&& arg)
 	{
-		return function_traits<f>::apply(func, arg);
+		return function_traits<f>::apply(func, std::forward<head_parameter<f>>(arg));
+	}
+
+	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
+	applied_type<f> operator<<(const f& func, const head_parameter<f>& arg)
+	{
+		auto arg_(arg);
+		return function_traits<f>::apply(func, std::move(arg_));
+	}
+
+	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
+	monadic_applied_type<f> operator>>=(last_parameter<f>&& arg, const f& func)
+	{
+		return function_traits<f>::monadic_apply(func, std::forward<last_parameter<f>>(arg));
 	}
 
 	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
 	monadic_applied_type<f> operator>>=(const last_parameter<f>& arg, const f& func)
 	{
-		return function_traits<f>::monadic_apply(func, arg);
+		auto arg_(arg);
+		return function_traits<f>::monadic_apply(func, std::move(arg_));
 	}
 
 	//generic or type container forward declaration
@@ -158,8 +172,14 @@ namespace fcl
 	template<typename a>
 	struct Show;
 
+	template<typename a>
+	struct Monoid;
+
 	template<template<typename> typename F>
 	struct Functor;
+
+	template<template<typename> typename I>
+	struct Injector;
 
 	template<template<typename> typename A>
 	struct Applicative;
@@ -278,6 +298,8 @@ namespace fcl
 {
 	struct nontrivial
 	{
+		friend std::ostream& operator<<(std::ostream&, const nontrivial&);
+
 		nontrivial();
 		nontrivial(int value);
 		nontrivial(const nontrivial& other);
@@ -295,25 +317,47 @@ namespace fcl
 		int *ptr_;
 	};
 
-	inline nontrivial::nontrivial() :ptr_(nullptr) { std::cout << "default construct ... " << std::endl; }
+	inline nontrivial::nontrivial() :ptr_(nullptr) { std::cout << "default construct... " << std::endl; }
 
-	inline nontrivial::nontrivial(int value) : ptr_(new int(value)) { std::cout << "construct with value: " << value << std::endl; }
+	inline nontrivial::nontrivial(int value) : ptr_(new int(value)) { std::cout << "construct value: " << value << std::endl; }
 
-	inline nontrivial::nontrivial(const nontrivial& other) : ptr_(new int(*other.ptr_)) { std::cout << "copy construct with value: " << (int)other << std::endl; }
+	inline nontrivial::nontrivial(const nontrivial& other)
+	{
+		if (other.ptr_ == nullptr)
+		{
+			std::cout << "copy construct null" << std::endl;
+			ptr_ = nullptr;
+		}
+		else
+		{
+			std::cout << "copy construct value: " << *other.ptr_ << std::endl;
+			ptr_ = new int(*other.ptr_);
+		}
+	}
 
-	inline nontrivial::nontrivial(nontrivial&& other) : ptr_(other.ptr_) { std::cout << "move construct with value: " << (int)other << std::endl; other.ptr_ = nullptr; }
+	inline nontrivial::nontrivial(nontrivial&& other) : ptr_(other.ptr_) { std::cout << "move construct..." << std::endl; other.ptr_ = nullptr; }
 
 	inline nontrivial& nontrivial::operator=(const nontrivial& other)
 	{
-		std::cout << "copy assign with value: " << (int)other << std::endl;
 		if (&other != this)
-			ptr_ = new int(*other.ptr_);
+		{
+			if (other.ptr_ == nullptr)
+			{
+				std::cout << "copy assign null" << std::endl;
+				ptr_ = nullptr;
+			}
+			else
+			{
+				std::cout << "copy assign value: " << (int)other << std::endl;
+				ptr_ = new int(*other.ptr_);
+			}
+		}
 		return *this;
 	}
 
 	inline nontrivial& nontrivial::operator=(nontrivial&& other)
 	{
-		std::cout << "move assign with value: " << (int)other << std::endl;
+		std::cout << "move assign..." << std::endl;
 		ptr_ = other.ptr_;
 		other.ptr_ = nullptr;
 		return *this;
@@ -321,19 +365,27 @@ namespace fcl
 
 	inline nontrivial::~nontrivial()
 	{
-		if (ptr_ == nullptr) return;
-		std::cout << "destruct: " << *ptr_ << std::endl;
-		delete ptr_;
+		if (ptr_ == nullptr) std::cout << "destruct: nullptr" << std::endl;
+		else
+		{
+			std::cout << "destruct: " << *ptr_ << std::endl;
+			delete ptr_;
+		}
 	}
 
 	inline nontrivial::operator int()const
 	{
-		std::cout << "cast back to: " << *ptr_ << std::endl; return *ptr_;
+		if (ptr_ == nullptr) throw std::exception("nullptr");
+		std::cout << "cast to: " << *ptr_ << std::endl;
+		return *ptr_;
 	}
 
 	inline std::ostream& operator<<(std::ostream& out, const nontrivial& nt)
 	{
-		return out << "nontrivial " << (int)nt;
+		out << "nontrivial ";
+
+		if (nt.ptr_ == nullptr) return out << "nullptr";
+		return out << *nt.ptr_;
 	}
 }
 

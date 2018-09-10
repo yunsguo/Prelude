@@ -570,16 +570,14 @@ namespace fcl
 		using head = a;
 		using last = TMP::last_t<TMP::Pack<a, b, rest...>>;
 
-		static applied apply(const f& func, const head& arg)
+		static applied apply(const f& func, head&& arg)
 		{
-			head arg_(arg);
-			return applied(func.ptr_->push_front(std::move(arg_)));
+			return applied(func.ptr_->push_front(std::forward<head>(arg)));
 		}
 
-		static monadic_applied monadic_apply(const f& func, const last& arg)
+		static monadic_applied monadic_apply(const f& func, last&& arg)
 		{
-			last arg_(arg);
-			return monadic_applied(func.ptr_->push_back(std::move(arg_)));
+			return monadic_applied(func.ptr_->push_back(std::forward<last>(arg)));
 		}
 	};
 
@@ -595,16 +593,14 @@ namespace fcl
 		using head = a;
 		using last = a;
 
-		static r apply(const f& func, const a& arg)
+		static r apply(const f& func, a&& arg)
 		{
-			a arg_(arg);
-			return func.ptr_->invoke(std::make_tuple<a>(std::move(arg_)));
+			return func.ptr_->invoke(std::make_tuple<a>(std::forward<a>(arg)));
 		}
 
-		static r monadic_apply(const f& func, const a& arg)
+		static r monadic_apply(const f& func, a&& arg)
 		{
-			a arg_(arg);
-			return func.ptr_->invoke(std::make_tuple<a>(std::move(arg_)));
+			return func.ptr_->invoke(std::make_tuple<a>(std::forward<a>(arg)));
 		}
 	};
 }

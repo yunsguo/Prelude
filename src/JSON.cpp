@@ -8,7 +8,7 @@ fcl::Reaction<Null> JSON::null(std::string inp)
 {
 	const static auto M =
 		fcl::string("null") >>
-		Null()
+		Injector<Parser>::pure<Null>(Null())
 		;
 	return fcl::parse(M, inp);
 }
@@ -17,7 +17,7 @@ fcl::Reaction<True> JSON::bool_true(std::string inp)
 {
 	const static auto M =
 		fcl::string("true") >>
-		True()
+		Injector<Parser>::pure<True>(True())
 		;
 	return fcl::parse(M, inp);
 }
@@ -26,7 +26,7 @@ fcl::Reaction<False> JSON::bool_false(std::string inp)
 {
 	const static auto M =
 		fcl::string("false") >>
-		False()
+		Injector<Parser>::pure<False>(False())
 		;
 	return fcl::parse(M, inp);
 }
@@ -52,7 +52,7 @@ fcl::Reaction<std::string> JSON::decimal(std::string inp)
 		(fcl::character('.') >>=
 			some(digit) >>=
 			Function<std::string, char, std::string>(cons_str)) ||
-		Monad<Parser>::pure<std::string>("");
+		Injector<Parser>::pure<std::string>("");
 
 	return fcl::parse(M, inp);
 }
@@ -65,7 +65,7 @@ fcl::Reaction<std::string> JSON::exponent(std::string inp)
 			some(digit) >>=
 			Function<std::string, char, std::string, std::string>
 			([](char e, std::string p, std::string q)->std::string { return e + p + q; })) ||
-		Monad<Parser>::pure<std::string>("");
+		Injector<Parser>::pure<std::string>("");
 
 	return fcl::parse(M, inp);
 }
@@ -76,12 +76,12 @@ fcl::Reaction<Number> JSON::number(std::string inp)
 		JSON::integer >>=
 		JSON::decimal >>=
 		JSON::exponent >>=
-		Monad<Parser>::pure<Function<std::string, std::string, std::string, std::string>>
+		Injector<Parser>::pure<Function<std::string, std::string, std::string, std::string>>
 		([](std::string s1, std::string s2, std::string s3)->std::string {return s1 + s2 + s3; });
 
-	auto reaction = parse(M, inp);
-	if (isNothing(reaction)) return Nothing();
-	auto pair = fromJust(reaction);
+	auto r = parse(M, inp);
+	if (isNothing(r)) return Nothing();
+	auto pair = fromJust(r);
 	return std::make_pair(Number{ std::stof(pair.first) }, std::move(pair.second));
 }
 
@@ -97,11 +97,11 @@ fcl::Reaction<char32_t> JSON::character(std::string inp)
 	const static Parser<char> special = fcl::sat
 	([](char c)->bool {return c == '\"' || c == '\\' || c == '/' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t'; });
 
-	const static auto C2U = Monad<Parser>::pure<Function<char32_t, char>>(char_to_uni);
+	const static auto C2U = Injector<Parser>::pure<Function<char32_t, char>>(char_to_uni);
 
 	const static Parser<char> hex = fcl::hexdecimal;
 
-	const static auto UNI = Monad<Parser>::pure<Function<char32_t, char, char, char, char>>(unicode);
+	const static auto UNI = Injector<Parser>::pure<Function<char32_t, char, char, char, char>>(unicode);
 
 	const static auto M =
 		(any_except >>=
@@ -136,25 +136,25 @@ fcl::Reaction<Value> JSON::value(std::string inp)
 {
 	const static auto M =
 		(Parser<String>(JSON::string) >>=
-			Monad<Parser>::pure<Function<Value, String>>(JSON::boxing<String>))
+			Function<Value, String>(JSON::boxing<String>))
 		||
 		(Parser<Number>(JSON::number) >>=
-			Monad<Parser>::pure<Function<Value, Number>>(JSON::boxing<Number>))
+			Function<Value, Number>(JSON::boxing<Number>))
 		||
 		(Parser<Object>(JSON::object) >>=
-			Monad<Parser>::pure<Function<Value, Object>>(JSON::boxing<Object>))
+			Function<Value, Object>(JSON::boxing<Object>))
 		||
 		(Parser<Array>(JSON::array) >>=
-			Monad<Parser>::pure<Function<Value, Array>>(JSON::boxing<Array>))
+			Function<Value, Array>(JSON::boxing<Array>))
 		||
 		(Parser<True>(JSON::bool_true) >>=
-			Monad<Parser>::pure<Function<Value, True>>(JSON::boxing<True>))
+			Function<Value, True>(JSON::boxing<True>))
 		||
 		(Parser<False>(JSON::bool_false) >>=
-			Monad<Parser>::pure<Function<Value, False>>(JSON::boxing<False>))
+			Function<Value, False>(JSON::boxing<False>))
 		||
 		(Parser<Null>(JSON::null) >>=
-			Monad<Parser>::pure<Function<Value, Null>>(JSON::boxing<Null>));
+			Function<Value, Null>(JSON::boxing<Null>));
 
 	return parse(M, inp);
 }
@@ -191,10 +191,10 @@ fcl::Reaction<Object> JSON::object(std::string inp)
 			fcl::character(':') >>
 			Parser<Value>(JSON::value) >>=
 			fcl::maybe_one(fcl::character(',')) >>
-			Monad<Parser>::pure<Function<Pair<String, Value>, String, Value>>(JSON::pair)
+			Function<Pair<String, Value>, String, Value>(JSON::pair)
 			) >>=
 		fcl::character('}') >>
-		Monad<Parser>::pure<Function<fcl::List<Pair<String, Value>>, fcl::List<Pair<String, Value>>>>(fcl::id<fcl::List<Pair<String, Value>>>);
+		Function<fcl::List<Pair<String, Value>>, fcl::List<Pair<String, Value>>>(fcl::id<fcl::List<Pair<String, Value>>>);
 
 	auto reaction = parse(M, inp);
 	if (isNothing(reaction)) return Nothing();

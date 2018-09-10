@@ -51,20 +51,20 @@ namespace fcl
 	struct Parser;
 
 	template<typename a>
-	Reaction<a> parse(const Parser<a>&, const std::string&);
+	Reaction<a> parse(const Parser<a>&, std::string);
 
 	template<typename a>
 	struct Parser
 	{
 		template<typename l, typename = std::enable_if_t<std::is_convertible<l, Function<Reaction<a>, std::string>>::value>>
 		Parser(l lambda) :P(lambda) {}
-		friend Reaction<a> parse<>(const Parser<a>&, const std::string&);
+		friend Reaction<a> parse<>(const Parser<a>&, std::string);
 	private:
 		Function<Reaction<a>, std::string> P;
 	};
 
 	template<typename a>
-	Reaction<a> parse(const Parser<a>& p, const std::string& str) { return p.P(str); }
+	Reaction<a> parse(const Parser<a>& p, std::string str) { return p.P(str); }
 
 	template<typename a>
 	Reaction<a> failure(std::string inp)
@@ -73,24 +73,63 @@ namespace fcl
 		return nothing;
 	}
 
+	template<typename a>
+	Reaction<a> reaction(a&& value, std::string&& inp)
+	{
+		return std::make_pair<a, std::string>(std::forward<a>(value), std::forward<std::string>(inp));
+	}
+
+	template<>
+	struct Injector<Parser>
+	{
+		using pertain = std::true_type;
+
+		template<typename a>
+		static Parser<a> pure(a&& value)
+		{
+			const static Function<Reaction<a>, a, std::string> pure_impl =
+				[](a val, std::string inp)->Reaction<a>
+			{
+				return reaction(std::move(val), std::move(inp));
+			};
+
+			return pure_impl << std::forward<a>(value);
+		}
+	};
+
 	template<>
 	struct Functor<Parser>
 	{
 		using pertain = std::true_type;
 
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-		static Parser<applied_type<f>> fmap(const f& f_, const Parser<head_parameter<f>>& pa)
+		static Parser<applied_type<f>> fmap(f&& f_, Parser<head_parameter<f>>&& pa)
 		{
 			const static Function<Reaction<applied_type<f>>, f, Parser<head_parameter<f>>, std::string> fmap_impl =
 				[](f func, Parser<head_parameter<f>> pa, std::string inp)->Reaction<applied_type<f>>
 			{
-				auto r = parse(pa, inp);
+				auto r = parse(pa, std::move(inp));
 				if (isNothing(r)) return Nothing();
-				auto pair = fromJust(r);
-				return std::make_pair<applied_type<f>, std::string>(func << pair.first, std::move(pair.second));
+				auto pair = fromJust(std::move(r));
+				return reaction(function_traits<f>::apply(func, std::move(pair.first)), std::move(pair.second));
 			};
 
-			return fmap_impl << f_ << pa;
+			return fmap_impl << std::forward<f>(f_) << std::forward<Parser<head_parameter<f>>>(pa);
+		}
+
+		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
+		static Parser<monadic_applied_type<f>> monadic_fmap(const f& f_, Parser<last_parameter<f>>&& pa)
+		{
+			const static Function<Reaction<monadic_applied_type<f>>, f, Parser<last_parameter<f>>, std::string> fmap_impl =
+				[](f func, Parser<last_parameter<f>> pa, std::string inp)->Reaction<monadic_applied_type<f>>
+			{
+				auto r = parse(pa, std::move(inp));
+				if (isNothing(r)) return Nothing();
+				auto pair = fromJust(std::move(r));
+				return reaction(function_traits<f>::monadic_apply(func,std::move(pair.first)), std::move(pair.second));
+			};
+
+			return fmap_impl << f_ << std::forward<Parser<last_parameter<f>>>(pa);
 		}
 	};
 
@@ -99,32 +138,21 @@ namespace fcl
 	{
 		using pertain = std::true_type;
 
-	private:
-		template<typename a>
-		static Reaction<a> alter_impl(Parser<a> p, Parser<a> q, std::string inp)
-		{
-			auto r = parse(p, inp);
-			if (isJust(r)) return r;
-			return parse(q, inp);
-		}
-
-	public:
-
 		template<typename a>
 		static Parser<a> empty() { return failure<a>; }
 
 		template<typename a>
-		static Parser<a> alter(const Parser<a>& p, const Parser<a>& q)
+		static Parser<a> alter(Parser<a>&& p, Parser<a>&& q)
 		{
 			const static Function<Reaction<a>, Parser<a>, Parser<a>, std::string> alter_impl =
 				[](Parser<a> p1, Parser<a> q1, std::string inp)->Reaction<a>
 			{
 				auto r = parse(p1, inp);
 				if (isJust(r)) return r;
-				return parse(q1, inp);
+				return parse(q1, std::move(inp));
 			};
 
-			return alter_impl << p << q;
+			return alter_impl << std::forward<Parser<a>>(p) << std::forward<Parser<a>>(q);
 		}
 	};
 
@@ -133,49 +161,36 @@ namespace fcl
 	{
 		using pertain = std::true_type;
 
-		template<typename a>
-		static Parser<a> pure(const a& value)
-		{
-			const static Function<Reaction<a>, a, std::string> pure_impl =
-				[](a val, std::string inp)->Reaction<a>
-			{
-				return std::make_pair<a, std::string>(std::move(val), std::move(inp));
-			};
-
-			return pure_impl << value;
-		}
-
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
-		static Parser<monadic_applied_type<f>> sequence(const Parser<last_parameter<f>>& pa, const Parser<f>& pf)
+		static Parser<monadic_applied_type<f>> sequence(Parser<f>&& pf, Parser<last_parameter<f>>&& pa)
 		{
 			const static Function<Reaction<monadic_applied_type<f>>, Parser<last_parameter<f>>, Parser<f>, std::string> seq_impl =
 				[](Parser<last_parameter<f>> pa1, Parser<f> pf1, std::string inp)->Reaction<monadic_applied_type<f>>
 			{
-				auto ra = parse(pa1, inp);
+				auto ra = parse(pa1, std::move(inp));
 				if (isNothing(ra)) return Nothing();
-				auto paira = fromJust(ra);
-				auto rf = parse(pf1, paira.second);
+				auto paira = fromJust(std::move(ra));
+				auto rf = parse(pf1, std::move(paira.second));
 				if (isNothing(rf)) return Nothing();
-				auto pairf = fromJust(rf);
-				return std::make_pair<monadic_applied_type<f>, std::string>(paira.first >>= pairf.first, std::move(pairf.second));
+				auto pairf = fromJust(std::move(rf));
+				return reaction(function_traits<f>::monadic_apply(pairf.first, std::move(paira.first)), std::move(pairf.second));
 			};
 
-			return seq_impl << pa << pf;
+			return seq_impl << std::forward<Parser<last_parameter<f>>>(pa) << std::forward<Parser<f>>(pf);
 		}
 
 		template<typename a, typename b>
-		static Parser<b> compose(const Parser<a>& p, const Parser<b>& q)
+		static Parser<b> compose(Parser<a>&& p, Parser<b>&& q)
 		{
 			const static Function<Reaction<b>, Parser<a>, Parser<b>, std::string> compose_impl =
 				[](Parser<a> p1, Parser<b> q1, std::string inp)->Reaction<b>
 			{
-				auto r = parse(p1, inp);
+				auto r = parse(p1, std::move(inp));
 				if (isNothing(r)) return Nothing();
-				auto pair = fromJust(r);
-				return parse(q1, pair.second);
+				return parse(q1, fromJust(std::move(r)).second);
 			};
 
-			return compose_impl << p << q;
+			return compose_impl << std::forward<Parser<a>>(p) << std::forward<Parser<b>>(q);
 		}
 	};
 
@@ -279,9 +294,9 @@ namespace fcl
 			[](Parser<a> p1, std::string inp)->Reaction<List<a>>
 		{
 			auto r = parse(p1, inp);
-			if (isNothing(r)) return std::make_pair<List<a>, std::string>(List<a>(), std::move(inp));
+			if (isNothing(r)) return reaction(List<a>(), std::move(inp));
 			auto pair = fromJust(r);
-			return std::make_pair<List<a>, std::string>(List<a>{pair.first}, std::move(pair.second));
+			return reaction(List<a>{pair.first}, std::move(pair.second));
 		};
 
 		return maybe_one_impl << p;
@@ -293,19 +308,19 @@ namespace fcl
 		const static Function<Reaction<List<a>>, Parser<a>, std::string> any_impl =
 			[](Parser<a> p, std::string inp) ->Reaction<List<a>>
 		{
-			auto reaction = parse(p, inp);
-			if (isNothing(reaction))
-				return std::make_pair<List<a>, std::string>(List<a>(), std::move(inp));
-			auto pair = fromJust(reaction);
+			auto r = parse(p, inp);
+			if (isNothing(r))
+				return reaction(List<a>(), std::move(inp));
+			auto pair = fromJust(r);
 			List<a> ans;
 			std::string inpn;
 			while (true)
 			{
 				ans.push_back(std::move(pair.first));
 				inpn = std::move(pair.second);
-				reaction = parse(p, inpn);
-				if (isNothing(reaction)) return std::make_pair<List<a>, std::string>(std::move(ans), std::move(inpn));
-				pair = fromJust(reaction);
+				r = parse(p, inpn);
+				if (isNothing(r)) return reaction(std::move(ans), std::move(inpn));
+				pair = fromJust(r);
 			}
 		};
 		return any_impl << p;
