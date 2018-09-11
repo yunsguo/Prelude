@@ -82,7 +82,7 @@ fcl::Reaction<Number> JSON::number(std::string inp)
 	auto r = parse(M, inp);
 	if (isNothing(r)) return Nothing();
 	auto pair = fromJust(r);
-	return std::make_pair(Number{ std::stof(pair.first) }, std::move(pair.second));
+	return reaction(Number{ std::stof(pair.first) }, std::move(pair.second));
 }
 
 char32_t JSON::char_to_uni(char c) { return c; }
@@ -126,10 +126,10 @@ fcl::Reaction<String> JSON::string(std::string inp)
 		fcl::any<char32_t>(JSON::character) >>=
 		fcl::character('\"') >>
 		Function<fcl::List<char32_t>, fcl::List<char32_t>>(fcl::id<fcl::List<char32_t>>);
-	auto reaction = parse(M, inp);
-	if (isNothing(reaction)) return Nothing();
-	auto pair = fromJust(reaction);
-	return std::make_pair<String, std::string>(String{ std::move(pair.first) }, std::move(pair.second));
+	auto r = parse(M, inp);
+	if (isNothing(r)) return Nothing();
+	auto pair = fromJust(r);
+	return reaction(String{ std::move(pair.first) }, std::move(pair.second));
 }
 
 fcl::Reaction<Value> JSON::value(std::string inp)
@@ -170,11 +170,11 @@ fcl::Reaction<Array> JSON::array(std::string inp)
 			) >>=
 		fcl::character(']') >>
 		Function<fcl::List<Value>, fcl::List<Value>>(fcl::id<fcl::List<Value>>);
-	auto reaction = parse(M, inp);
-	if (isNothing(reaction)) return Nothing();
-	auto pair = fromJust(reaction);
+	auto r = parse(M, inp);
+	if (isNothing(r)) return Nothing();
+	auto pair = fromJust(r);
 
-	return std::make_pair<Array, std::string>(Array{ std::move(pair.first) }, std::move(pair.second));
+	return reaction(Array{ std::move(pair.first) }, std::move(pair.second));
 }
 
 Pair<String, Value> JSON::pair(String str, Value val)
@@ -196,11 +196,11 @@ fcl::Reaction<Object> JSON::object(std::string inp)
 		fcl::character('}') >>
 		Function<fcl::List<Pair<String, Value>>, fcl::List<Pair<String, Value>>>(fcl::id<fcl::List<Pair<String, Value>>>);
 
-	auto reaction = parse(M, inp);
-	if (isNothing(reaction)) return Nothing();
-	auto pair = fromJust(reaction);
+	auto r = parse(M, inp);
+	if (isNothing(r)) return Nothing();
+	auto pair = fromJust(r);
 
-	return std::make_pair<Object, std::string>(Object{ std::move(pair.first) }, std::move(pair.second));
+	return reaction(Object{ std::move(pair.first) }, std::move(pair.second));
 }
 
 //type inference for JSON types
