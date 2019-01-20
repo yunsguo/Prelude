@@ -99,20 +99,20 @@ namespace details
 	struct pattern
 	{
 		template<typename b, typename ...bs>
-		static bool match(a first, as...args) { return variant_traits<a>::is_of<b>(first) && pattern<as...>::match<bs...>(args...); }
+		static bool match(a first, as...args) { return variant_traits<a>::template is_of<b>(first) && pattern<as...>::template match<bs...>(args...); }
 
 		template<typename b, typename ...bs>
-		static std::tuple<b, bs...> gets(a first, as...args) { return std::tuple_cat(std::make_tuple<b>(variant_traits<a>::move<b>(first)), pattern<as...>::gets<bs...>(args...)); }
+		static std::tuple<b, bs...> gets(a first, as...args) { return std::tuple_cat(std::make_tuple<b>(variant_traits<a>::template move<b>(first)), pattern<as...>::template gets<bs...>(args...)); }
 	};
 
 	template<typename a>
 	struct pattern<a>
 	{
 		template<typename b>
-		static bool match(a first) { return variant_traits<a>::is_of<b>(first); }
+		static bool match(a first) { return variant_traits<a>::template is_of<b>(first); }
 
 		template<typename b>
-		static std::tuple<b> gets(a first) { return std::make_tuple<b>(variant_traits<a>::move<b>(first)); }
+		static std::tuple<b> gets(a first) { return std::make_tuple<b>(variant_traits<a>::template move<b>(first)); }
 	};
 }
 
@@ -229,13 +229,13 @@ namespace fcl
 	template<template<typename> typename F, typename f, typename = std::enable_if_t<Functor<F>::pertain::value && is_function<f>::value>>
 	F<applied_type<f>> operator<<=(f func, F<head_parameter<f>> ff)
 	{
-		return Functor<F>::fmap<f>(std::move(func), std::move(ff));
+		return Functor<F>::template fmap<f>(std::move(func), std::move(ff));
 	}
 
 	template<template<typename> typename F, typename f, typename = std::enable_if_t<Functor<F>::pertain::value && is_function<f>::value>>
 	F<monadic_applied_type<f>> operator>>=(F<last_parameter<f>> ff, f func)
 	{
-		return Functor<F>::monadic_fmap<f>(std::move(func), std::move(ff));
+		return Functor<F>::template monadic_fmap<f>(std::move(func), std::move(ff));
 	}
 
 	template<template<typename> typename A>
@@ -250,7 +250,7 @@ namespace fcl
 	template<template<typename> typename A, typename f, typename = std::enable_if_t<Applicative<A>::pertain::value && is_function<f>::value>>
 	A<applied_type<f>> operator<<=(A<f> af, A<head_parameter<f>> aa)
 	{
-		return Applicative<A>::sequence<f>(std::move(af), std::move(aa));
+		return Applicative<A>::template sequence<f>(std::move(af), std::move(aa));
 	}
 
 	template<template<typename> typename A>
@@ -286,14 +286,14 @@ namespace fcl
 	template<template<typename> typename M, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value>>
 	M<monadic_applied_type<f>> operator>>=(M<last_parameter<f>> ma, M<f> func)
 	{
-		return Monad<M>::sequence<f>(std::move(func), std::move(ma));
+		return Monad<M>::template sequence<f>(std::move(func), std::move(ma));
 	}
 
 	template<typename a, template<typename> typename M, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value && std::is_convertible<a, M<last_parameter<f>>>::value>>
 	M<monadic_applied_type<f>> operator>>=(a ma, M<f> func)
 	{
 		const static auto convert = [](a var)->M<last_parameter<f>> {return var; };
-		return Monad<M>::sequence<f>(std::move(func), convert(ma));
+		return Monad<M>::template sequence<f>(std::move(func), convert(ma));
 	}
 
 	template<template<typename> typename M, typename a, typename b, typename = std::enable_if_t<Monad<M>::pertain::value>>
@@ -305,7 +305,7 @@ namespace fcl
 	template<template<typename> typename M, typename a, typename f, typename = std::enable_if_t<is_function<f>::value && Monad<M>::pertain::value>>
 	M<f> operator>>(M<a> p, f q)
 	{
-		return Monad<M>::compose(std::move(p), Injector<M>::pure<f>(std::move(q)));
+		return Monad<M>::compose(std::move(p), Injector<M>::template pure<f>(std::move(q)));
 	}
 
 	template<typename a>
@@ -341,19 +341,19 @@ namespace fcl
 	}
 
 	template<typename a>
-	bool isJust(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::is_of<Just<a>>(ma); }
+	bool isJust(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::template is_of<Just<a>>(ma); }
 
 	template<typename a>
-	bool isNothing(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::is_of<Nothing>(ma); }
+	bool isNothing(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::template is_of<Nothing>(ma); }
 
 	template<typename a>
-	a fromJust(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::get<Just<a>>(ma).value; }
+	a fromJust(const Maybe<a>& ma) { return variant_traits<Maybe<a>>::template get<Just<a>>(ma).value; }
 
 	template<typename a>
-	a fromJust(Maybe<a>&& ma) { return variant_traits<Maybe<a>>::move<Just<a>>(ma).value; }
+	a fromJust(Maybe<a>&& ma) { return variant_traits<Maybe<a>>::template move<Just<a>>(ma).value; }
 
 	template<typename a>
-	a fromMaybe(a default_r, const Maybe<a>& ma) { isNothing(ma) ? default_r : variant_traits<Maybe<a>>::get<Just<a>>(ma).value; }
+	a fromMaybe(a default_r, const Maybe<a>& ma) { isNothing(ma) ? default_r : variant_traits<Maybe<a>>::template get<Just<a>>(ma).value; }
 
 	//Maybe variant traits implenmentation
 	template<typename a>
@@ -371,13 +371,13 @@ namespace fcl
 		using D = Data<Nothing, Just<a>>;
 
 		template<typename b>
-		static bool is_of(const def& maybe) { return variant_traits<D>::is_of<b>(maybe.value); }
+		static bool is_of(const def& maybe) { return variant_traits<D>::template is_of<b>(maybe.value); }
 
 		template<typename b>
-		static b&& move(def& maybe) { return variant_traits<D>::move<b>(maybe.value); }
+		static b&& move(def& maybe) { return variant_traits<D>::template move<b>(maybe.value); }
 
 		template<typename b>
-		static const b& get(const def& maybe) { return variant_traits<D>::get<b>(maybe.value); }
+		static const b& get(const def& maybe) { return variant_traits<D>::template get<b>(maybe.value); }
 	};
 
 	//Maybe Eq typeclass implenmentation
@@ -424,7 +424,7 @@ namespace fcl
 		{
 			static_assert(Show<a>::pertain::value, "Maybe<a> is not of Show because a is not of Show.");
 			if (isNothing(value)) return "Nothing";
-			return "Just " + Show<a>::show(variant_traits<Maybe<a>>::get<Just<a>>(value).value);
+			return "Just " + Show<a>::show(variant_traits<Maybe<a>>::template get<Just<a>>(value).value);
 		}
 	};
 
@@ -597,8 +597,8 @@ namespace fcl
 		{
 			static_assert(details::are_show<a, b, rest...>::value, "variant<a, b, rest...> is not of Show because a, b, rest... are not all of Show.");
 			using T = typename TMP::index<V, I>::type;
-			if (variant_traits<V>::is_of<T>(value))
-				return util::type<T>::infer() + " " + Show<T>::show(variant_traits<V>::get<T>(value));
+			if (variant_traits<V>::template is_of<T>(value))
+				return util::type<T>::infer() + " " + Show<T>::show(variant_traits<V>::template get<T>(value));
 			return show_impl<I + 1>(value);
 		}
 
@@ -649,7 +649,7 @@ namespace fcl
 			{
 				static_assert(details::are_legal<TMP::List<as...>, TMP::List<bs...>>::value, "error: type mismatch.");
 				if (isJust(r_)) return *this;
-				if (std::apply(details::pattern<as...>::match<bs...>, var_))
+				if (std::apply(details::pattern<as...>::template match<bs...>, var_))
 					r_ = result;
 				return *this;
 			}
@@ -659,8 +659,8 @@ namespace fcl
 			{
 				static_assert(details::are_legal<TMP::List<as...>, TMP::List<bs...>>::value, "error: type mismatch.");
 				if (isJust(r_)) return *this;
-				if (std::apply(details::pattern<as...>::match<bs...>, var_))
-					r_ = std::apply(f, std::apply(details::pattern<as...>::gets<bs...>, std::move(var_)));
+				if (std::apply(details::pattern<as...>::template match<bs...>, var_))
+					r_ = std::apply(f, std::apply(details::pattern<as...>::template gets<bs...>, std::move(var_)));
 				return *this;
 			}
 
@@ -686,9 +686,9 @@ namespace fcl
 			template<typename b>
 			pattern& match(r result)
 			{
-				static_assert(variant_traits<a>::elem<b>::value, "error: type mismatch.");
+				static_assert(variant_traits<a>::template elem<b>::value, "error: type mismatch.");
 				if (isJust(r_)) return *this;
-				if (variant_traits<a>::is_of<b>(var_))
+				if (variant_traits<a>::template is_of<b>(var_))
 					r_ = result;
 				return *this;
 			}
@@ -696,10 +696,10 @@ namespace fcl
 			template<typename b>
 			pattern& match(const Function<r, b>& f)
 			{
-				static_assert(variant_traits<a>::elem<b>::value, "error: type mismatch.");
+				static_assert(variant_traits<a>::template elem<b>::value, "error: type mismatch.");
 				if (isJust(r_)) return *this;
-				if (variant_traits<a>::is_of<b>(var_))
-					r_ = result;
+				if (variant_traits<a>::template is_of<b>(var_))
+					r_ = std::apply(f,var_);
 				return *this;
 			}
 

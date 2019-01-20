@@ -103,7 +103,7 @@ namespace fcl
 	private:
 
 		template<typename U, typename std::enable_if_t<TMP::elem<list, U>::value>>
-		variant(U* ptr) :index_(TMP::elem_index<T, list>::value), ptr_(ptr) {}
+		variant(U* ptr) :index_(TMP::elem_index<U, list>::value), ptr_(ptr) {}
 
 		//bisection search convert runtime int to a compile-time one
 		//might take a while if variant contains a lot of types
