@@ -74,7 +74,7 @@ namespace TMP
 
 	//informal type list  constructor 
 	template<typename ...as>
-	using List = typename to_list<Pack<as...>>::type;
+	using list = typename to_list<Pack<as...>>::type;
 
 	template<>
 	struct to_list<Pack<>> { using type = Nil; };
@@ -83,7 +83,7 @@ namespace TMP
 	struct to_list<Pack<T, Ts...>> { using type = Cons<T, typename to_list<Pack<Ts...>>::type>; };
 
 	template<typename ...Ts>
-	struct to_list<std::tuple<Ts...>> { using type = List<Ts...>; };
+	struct to_list<std::tuple<Ts...>> { using type = list<Ts...>; };
 
 	//list trait for automatic conversion 
 	//such that other type with list trait can be used as list 
@@ -100,10 +100,10 @@ namespace TMP
 	struct list_trait<Cons<a, b>> { using type = Cons<a, b>; };
 
 	template<typename ...as>
-	struct list_trait<Pack<as...>> { using type = List<as...>; };
+	struct list_trait<Pack<as...>> { using type = list<as...>; };
 
 	template<typename ...as>
-	struct list_trait<std::tuple<as...>> { using type = List<as...>; };
+	struct list_trait<std::tuple<as...>> { using type = list<as...>; };
 
 	//meta function converting other type to type pack
 	template<typename a>
@@ -161,10 +161,10 @@ namespace TMP
 	using fmap_type = typename fmap<l, fa>::type;
 
 	template<template<typename> typename l, typename ...as>
-	struct fmap<l, Pack<as...>> { using type = typename to_pack<typename l<List<as...>>::type>::type; };
+	struct fmap<l, Pack<as...>> { using type = typename to_pack<typename l<list<as...>>::type>::type; };
 
 	template<template<typename> typename l, typename ...as>
-	struct fmap<l, std::tuple<as...>> { using type = typename to_tuple<typename l<List<as...>>::type>::type; };
+	struct fmap<l, std::tuple<as...>> { using type = typename to_tuple<typename l<list<as...>>::type>::type; };
 
 	//Extract the first component of a pair
 	template<typename a>

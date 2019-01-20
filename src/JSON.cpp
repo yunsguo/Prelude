@@ -39,9 +39,9 @@ fcl::Reaction<std::string> JSON::integer(std::string inp)
 			fcl::string("0") || (
 				digit19 >>=
 				any(digit) >>=
-				Function<std::string, char, std::string>(cons_str)
+				function<std::string, char, std::string>(cons_str)
 				)) >>=
-		Function<std::string, std::string, std::string>(concat_str);
+		function<std::string, std::string, std::string>(concat_str);
 
 	return fcl::parse(M, inp);
 }
@@ -51,7 +51,7 @@ fcl::Reaction<std::string> JSON::decimal(std::string inp)
 	const static auto M =
 		(fcl::character('.') >>=
 			some(digit) >>=
-			Function<std::string, char, std::string>(cons_str)) ||
+			function<std::string, char, std::string>(cons_str)) ||
 		Injector<Parser>::pure<std::string>("");
 
 	return fcl::parse(M, inp);
@@ -63,7 +63,7 @@ fcl::Reaction<std::string> JSON::exponent(std::string inp)
 		((fcl::character('e') || fcl::character('E')) >>=
 			maybe_one(sat([](char c)->bool {return c == '+' || c == '-'; })) >>=
 			some(digit) >>=
-			Function<std::string, char, std::string, std::string>
+			function<std::string, char, std::string, std::string>
 			([](char e, std::string p, std::string q)->std::string { return e + p + q; })) ||
 		Injector<Parser>::pure<std::string>("");
 
@@ -76,7 +76,7 @@ fcl::Reaction<Number> JSON::number(std::string inp)
 		JSON::integer >>=
 		JSON::decimal >>=
 		JSON::exponent >>=
-		Injector<Parser>::pure<Function<std::string, std::string, std::string, std::string>>
+		Injector<Parser>::pure<function<std::string, std::string, std::string, std::string>>
 		([](std::string s1, std::string s2, std::string s3)->std::string {return s1 + s2 + s3; });
 
 	auto r = parse(M, inp);
@@ -97,11 +97,11 @@ fcl::Reaction<char32_t> JSON::character(std::string inp)
 	const static Parser<char> special = fcl::sat
 	([](char c)->bool {return c == '\"' || c == '\\' || c == '/' || c == '\b' || c == '\f' || c == '\n' || c == '\r' || c == '\t'; });
 
-	const static auto C2U = Injector<Parser>::pure<Function<char32_t, char>>(char_to_uni);
+	const static auto C2U = Injector<Parser>::pure<function<char32_t, char>>(char_to_uni);
 
 	const static Parser<char> hex = fcl::hexdecimal;
 
-	const static auto UNI = Injector<Parser>::pure<Function<char32_t, char, char, char, char>>(unicode);
+	const static auto UNI = Injector<Parser>::pure<function<char32_t, char, char, char, char>>(unicode);
 
 	const static auto M =
 		(any_except >>=
@@ -125,7 +125,7 @@ fcl::Reaction<String> JSON::string(std::string inp)
 		fcl::character('\"') >>
 		fcl::any<char32_t>(JSON::character) >>=
 		fcl::character('\"') >>
-		Function<fcl::List<char32_t>, fcl::List<char32_t>>(fcl::id<fcl::List<char32_t>>);
+		function<fcl::list<char32_t>, fcl::list<char32_t>>(fcl::id<fcl::list<char32_t>>);
 	auto r = parse(M, inp);
 	if (isNothing(r)) return Nothing();
 	auto pair = fromJust(r);
@@ -136,25 +136,25 @@ fcl::Reaction<Value> JSON::value(std::string inp)
 {
 	const static auto M =
 		(Parser<String>(JSON::string) >>=
-			Function<Value, String>(JSON::boxing<String>))
+			function<Value, String>(JSON::boxing<String>))
 		||
 		(Parser<Number>(JSON::number) >>=
-			Function<Value, Number>(JSON::boxing<Number>))
+			function<Value, Number>(JSON::boxing<Number>))
 		||
 		(Parser<Object>(JSON::object) >>=
-			Function<Value, Object>(JSON::boxing<Object>))
+			function<Value, Object>(JSON::boxing<Object>))
 		||
 		(Parser<Array>(JSON::array) >>=
-			Function<Value, Array>(JSON::boxing<Array>))
+			function<Value, Array>(JSON::boxing<Array>))
 		||
 		(Parser<True>(JSON::bool_true) >>=
-			Function<Value, True>(JSON::boxing<True>))
+			function<Value, True>(JSON::boxing<True>))
 		||
 		(Parser<False>(JSON::bool_false) >>=
-			Function<Value, False>(JSON::boxing<False>))
+			function<Value, False>(JSON::boxing<False>))
 		||
 		(Parser<Null>(JSON::null) >>=
-			Function<Value, Null>(JSON::boxing<Null>));
+			function<Value, Null>(JSON::boxing<Null>));
 
 	return parse(M, inp);
 }
@@ -166,10 +166,10 @@ fcl::Reaction<Array> JSON::array(std::string inp)
 		fcl::any<Value>(
 			JSON::value >>=
 			fcl::maybe_one(fcl::character(',')) >>
-			Function<Value, Value>(fcl::id<Value>)
+			function<Value, Value>(fcl::id<Value>)
 			) >>=
 		fcl::character(']') >>
-		Function<fcl::List<Value>, fcl::List<Value>>(fcl::id<fcl::List<Value>>);
+		function<fcl::list<Value>, fcl::list<Value>>(fcl::id<fcl::list<Value>>);
 	auto r = parse(M, inp);
 	if (isNothing(r)) return Nothing();
 	auto pair = fromJust(r);
@@ -177,7 +177,7 @@ fcl::Reaction<Array> JSON::array(std::string inp)
 	return reaction(Array{ std::move(pair.first) }, std::move(pair.second));
 }
 
-Pair<String, Value> JSON::pair(String str, Value val)
+fcl::pair<String, Value> JSON::pair(String str, Value val)
 {
 	return std::make_pair<String, Value>(std::move(str), std::move(val));
 }
@@ -186,15 +186,15 @@ fcl::Reaction<Object> JSON::object(std::string inp)
 {
 	const static auto M =
 		fcl::character('{') >>
-		any<Pair<String, Value>>(
+		any<fcl::pair<String, Value>>(
 			Parser<String>(JSON::string) >>=
 			fcl::character(':') >>
 			Parser<Value>(JSON::value) >>=
 			fcl::maybe_one(fcl::character(',')) >>
-			Function<Pair<String, Value>, String, Value>(JSON::pair)
+			function<fcl::pair<String, Value>, String, Value>(JSON::pair)
 			) >>=
 		fcl::character('}') >>
-		Function<fcl::List<Pair<String, Value>>, fcl::List<Pair<String, Value>>>(fcl::id<fcl::List<Pair<String, Value>>>);
+		function<fcl::list<fcl::pair<String, Value>>, fcl::list<fcl::pair<String, Value>>>(fcl::id<fcl::list<fcl::pair<String, Value>>>);
 
 	auto r = parse(M, inp);
 	if (isNothing(r)) return Nothing();
@@ -254,7 +254,7 @@ template<>
 struct fcl::Show<JSON::String>
 {
 	using pertain = std::true_type;
-	inline static std::string show(const JSON::String& value) { return fcl::Show<fcl::List<char32_t>>::show(value.value); }
+	inline static std::string show(const JSON::String& value) { return fcl::Show<fcl::list<char32_t>>::show(value.value); }
 };
 
 template<>
@@ -287,9 +287,9 @@ struct fcl::Show<JSON::Object>
 
 std::string fcl::Show<JSON::Value>::show(const JSON::Value & value) { return fcl::Show<JSON::VD>::show(value.value); }
 
-std::string fcl::Show<JSON::Array>::show(const JSON::Array & value) { return fcl::Show<fcl::List<JSON::Value>>::show(value.value); }
+std::string fcl::Show<JSON::Array>::show(const JSON::Array & value) { return fcl::Show<fcl::list<JSON::Value>>::show(value.value); }
 
-std::string fcl::Show<JSON::Object>::show(const JSON::Object & value) { return fcl::Show<fcl::List<Pair<JSON::String, JSON::Value>>>::show(value.value); }
+std::string fcl::Show<JSON::Object>::show(const JSON::Object & value) { return fcl::Show<fcl::list<pair<JSON::String, JSON::Value>>>::show(value.value); }
 
 #ifdef JSON_CPP
 

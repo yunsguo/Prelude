@@ -41,15 +41,15 @@ int main()
 	std::cout << "v is nontrivial: " << VT<V1>::is_of<nontrivial>(v) << std::endl;
 	std::cout << "get v as nontrivial: " << VT<V1>::get<nontrivial>(v) << std::endl;
 
-	Function<int, int> f(inc);
+	function<int, int> f(inc);
 	std::cout << "function test: " << f(5) << std::endl;
-	using V2 = variant<Nothing, Function<int, int>>;
+	using V2 = variant<Nothing, function<int, int>>;
 	V2 mf;
 	mf = f;
 	std::cout << "assign mf with inc" << std::endl;
 	std::cout << "mf is Nothing: " << VT<V2>::is_of<Nothing>(mf) << std::endl;
-	std::cout << "mf is Function<int, int>: " << VT<V2>::is_of<Function<int, int>>(mf) << std::endl;
-	std::cout << "get v as a function and call with 5: " << VT<V2>::get<Function<int, int>>(mf)(5) << std::endl;
+	std::cout << "mf is function<int, int>: " << VT<V2>::is_of<function<int, int>>(mf) << std::endl;
+	std::cout << "get v as a function and call with 5: " << VT<V2>::get<function<int, int>>(mf)(5) << std::endl;
 
 	std::cout << "inferred type V1: " << util::type<V1>::infer() << std::endl;
 	std::cout << "inferred type V2: " << util::type<V2>::infer() << std::endl;

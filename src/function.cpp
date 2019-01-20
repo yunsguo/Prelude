@@ -27,16 +27,16 @@ int test_function2(int a, int b, int c, int d)
 	return (a + b)*c - d;
 }
 
-NA test_function3(int i, char c, float f, double d)
+na test_function3(int i, char c, float f, double d)
 {
 	std::cout << i << c << f << d << std::endl;
-	return NA();
+	return na();
 }
 
-NA increment(int i)
+na increment(int i)
 {
 	std::cout << "increment: " << i << " -> " << i + 1 << std::endl;
-	return NA();
+	return na();
 }
 
 int main()
@@ -63,9 +63,9 @@ int main()
 	std::cout << r1 << std::endl;
 	std::cout << std::endl << "function back operation end" << std::endl << std::endl;
 
-	//Function<int, int, int, int, int> tf1(test_function2);
+	//function<int, int, int, int, int> tf1(test_function2);
 
-	Function<int, int, int, int, int> tf1 = test_function2;
+	function<int, int, int, int, int> tf1 = test_function2;
 
 	std::cout << tf1(4, 3, 2, 1) << std::endl;
 
@@ -79,35 +79,35 @@ int main()
 
 	std::cout << std::endl << "function reverse operation end" << std::endl << std::endl;
 
-	Function<int, int, int, int, int> tf11(tf1);
+	function<int, int, int, int, int> tf11(tf1);
 
 	std::cout << std::endl << "f copy: " << tf11(4, 3, 2, 1) << std::endl << std::endl;
 
-	Function<int, int, int, int, int> tf12 = tf1;
+	function<int, int, int, int, int> tf12 = tf1;
 
 	std::cout << std::endl << "f copy2: " << tf12(4, 3, 2, 1) << std::endl << std::endl;
 
-	Function<int, int, int, int, int> tf13(std::move(Function<int, int, int, int, int>(test_function2)));
+	function<int, int, int, int, int> tf13(std::move(function<int, int, int, int, int>(test_function2)));
 
 	std::cout << std::endl << "f move: " << tf13(4, 3, 2, 1) << std::endl << std::endl;
 
-	Function<int, int, int, int, int> tf14 = Function<int, int, int, int, int>(test_function2);
+	function<int, int, int, int, int> tf14 = function<int, int, int, int, int>(test_function2);
 
 	std::cout << std::endl << "f construct assign : " << tf14(4, 3, 2, 1) << std::endl << std::endl;
 
-	Function<int, int, int, int, int>* fptr = new Function<int, int, int, int, int>(tf14);
+	function<int, int, int, int, int>* fptr = new function<int, int, int, int, int>(tf14);
 
 	delete fptr;
 
-	std::cout << util::type<Function<int, int, int, int, int>>::infer() << std::endl;
+	std::cout << util::type<function<int, int, int, int, int>>::infer() << std::endl;
 
-	Function<NA, int, char, float, double> tf15(test_function3);
+	function<na, int, char, float, double> tf15(test_function3);
 
 	tf15 << 1 << '2' << 3.0f << 4.0;
 
 	4 >>= '3' >>= 2.0f >>= 1.0 >>= tf15;
 
-	Function<NA, int> tf16(increment);
+	function<na, int> tf16(increment);
 
 	tf16 << 5;
 }

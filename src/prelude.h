@@ -20,7 +20,7 @@
 *	check Haskell prelude for futher info
 *	Eq, Ord, Show all have their operator implenmeted
 *	Functor fmap is implenmented
-*	Applicative has the same partial apply operator as Function type
+*	Applicative has the same partial apply operator as function type
 *	Monad has a unique operator >>= for sequence and operator >> for compose
 *	due to the order needed to achieve do Haskell notation
 *	Monad is no longer an Applicative
@@ -128,15 +128,15 @@ namespace fcl
 {
 
 	template<typename a, typename b, typename ...rest>
-	using Data = variant<a, b, rest...>;
+	using data = variant<a, b, rest...>;
 
 	//generic list haskell conter-part(double linked list)
 	template<typename a>
-	using List = std::list<a>;
+	using list = std::list<a>;
 
 	//generic list cons method
 	template<typename a>
-	List<a> cons(a first, List<a> as)
+	list<a> cons(a first, list<a> as)
 	{
 		as.push_front(first);
 		return as;
@@ -144,11 +144,11 @@ namespace fcl
 
 	//generic list uncons method
 	template<typename a>
-	Pair<a, List<a>> uncons(List<a> as)
+	pair<a, list<a>> uncons(list<a> as)
 	{
 		a f = as.front();
 		as.pop_front();
-		return std::make_pair<a, List<a>>(std::move(f), std::move(as));
+		return std::make_pair<a, list<a>>(std::move(f), std::move(as));
 	}
 
 	template<typename a>
@@ -338,11 +338,11 @@ namespace fcl
 		friend variant_traits<Maybe<a>>;
 
 	private:
-		Data<Nothing, Just<a>> value;
+		data<Nothing, Just<a>> value;
 	};
 
 	template<typename a, typename b>
-	b maybe(b default_r, const Function<b, a>& f, const Maybe<a>& ma)
+	b maybe(b default_r, const function<b, a>& f, const Maybe<a>& ma)
 	{
 		if (isNothing(ma)) return default_r;
 		return f(fromJust(ma));
@@ -374,9 +374,9 @@ namespace fcl
 		using def = Maybe<a>;
 
 		template<typename b>
-		using elem = TMP::elem<TMP::List<Nothing, Just<a>>, b>;
+		using elem = TMP::elem<TMP::list<Nothing, Just<a>>, b>;
 
-		using D = Data<Nothing, Just<a>>;
+		using D = data<Nothing, Just<a>>;
 
 		template<typename b>
 		static bool is_of(const def& maybe) { return variant_traits<D>::template is_of<b>(maybe.value); }
@@ -518,37 +518,37 @@ namespace fcl
 	//Show typeclass common implenmentations
 
 	template<>
-	struct Show<NA>
+	struct Show<na>
 	{
 		using pertain = std::true_type;
 
-		static std::string show(const NA& value) { return "()"; }
+		static std::string show(const na& value) { return "()"; }
 	};
 
 	template<typename a>
-	struct Show<Tuple<a>>
+	struct Show<tuple<a>>
 	{
 		using pertain = std::true_type;
 
-		static std::string content(Tuple<a> value)
+		static std::string content(tuple<a> value)
 		{
-			static_assert(Show<a>::pertain::value, "Tuple<a> is not of Show because a is not of Show.");
+			static_assert(Show<a>::pertain::value, "tuple<a> is not of Show because a is not of Show.");
 			return Show<a>::show(std::get<0>(value));
 		}
 
-		static std::string show(const Tuple<a>& value)
+		static std::string show(const tuple<a>& value)
 		{
-			static_assert(Show<a>::pertain::value, "Tuple<a> is not of Show because a is not of Show.");
+			static_assert(Show<a>::pertain::value, "tuple<a> is not of Show because a is not of Show.");
 			return "(" + content(value) + ")";
 		}
 	};
 
 	template<typename a, typename b>
-	struct Show<Pair<a, b>>
+	struct Show<pair<a, b>>
 	{
 		using pertain = std::true_type;
 
-		static std::string show(const Pair<a, b>& value)
+		static std::string show(const pair<a, b>& value)
 		{
 			static_assert(details::are_show<a, b>::value, "Pair<a,b> is not of Show because a or b are not all of Show.");
 			return "(" + Show<a>::show(value.first) + ", " + Show<b>::show(value.second) + ")";
@@ -556,19 +556,19 @@ namespace fcl
 	};
 
 	template<typename a, typename ...as>
-	struct Show<Tuple<a, as...>>
+	struct Show<tuple<a, as...>>
 	{
 		using pertain = std::true_type;
-		static std::string content(Tuple<a, as...> value)
+		static std::string content(tuple<a, as...> value)
 		{
-			static_assert(details::are_show<a, as...>::value, "Tuple<a,as...> is not of Show because a,as... are not all of Show.");
+			static_assert(details::are_show<a, as...>::value, "tuple<a,as...> is not of Show because a,as... are not all of Show.");
 			auto first = Show<a>::show(std::get<0>(value));
-			return first + ", " + Show<Tuple<as...>>::content(details::tail(std::move(value)));
+			return first + ", " + Show<tuple<as...>>::content(details::tail(std::move(value)));
 		}
 
-		static std::string show(const Tuple<a, as...>& value)
+		static std::string show(const tuple<a, as...>& value)
 		{
-			static_assert(details::are_show<a, as...>::value, "Tuple<a,as...> is not of Show because a,as... are not all of Show.");
+			static_assert(details::are_show<a, as...>::value, "tuple<a,as...> is not of Show because a,as... are not all of Show.");
 			return "(" + content(value) + ")";
 		}
 	};
@@ -618,13 +618,13 @@ namespace fcl
 	};
 
 	template<typename a>
-	struct Show<List<a>>
+	struct Show<list<a>>
 	{
 		using pertain = std::true_type;
 
-		static std::string show(const List<a>& value)
+		static std::string show(const list<a>& value)
 		{
-			static_assert(Show<a>::pertain::value, "List<a> is not of Show because a is not of Show.");
+			static_assert(Show<a>::pertain::value, "list<a> is not of Show because a is not of Show.");
 			if (value.size() == 0) return "[]";
 			if (value.size() == 1)
 				return "[" + Show<a>::show(value.front()) + "]";
@@ -655,7 +655,7 @@ namespace fcl
 			template<typename...bs>
 			pattern<as...>& match(r result)
 			{
-				static_assert(details::are_legal<TMP::List<as...>, TMP::List<bs...>>::value, "error: type mismatch.");
+				static_assert(details::are_legal<TMP::list<as...>, TMP::list<bs...>>::value, "error: type mismatch.");
 				if (isJust(r_)) return *this;
 				if (std::apply(details::pattern<as...>::template match<bs...>, var_))
 					r_ = result;
@@ -663,9 +663,9 @@ namespace fcl
 			}
 
 			template<typename...bs>
-			pattern<as...>& match(const Function<r, bs...>& f)
+			pattern<as...>& match(const function<r, bs...>& f)
 			{
-				static_assert(details::are_legal<TMP::List<as...>, TMP::List<bs...>>::value, "error: type mismatch.");
+				static_assert(details::are_legal<TMP::list<as...>, TMP::list<bs...>>::value, "error: type mismatch.");
 				if (isJust(r_)) return *this;
 				if (std::apply(details::pattern<as...>::template match<bs...>, var_))
 					r_ = std::apply(f, std::apply(details::pattern<as...>::template gets<bs...>, std::move(var_)));
@@ -702,7 +702,7 @@ namespace fcl
 			}
 
 			template<typename b>
-			pattern& match(const Function<r, b>& f)
+			pattern& match(const function<r, b>& f)
 			{
 				static_assert(variant_traits<a>::template elem<b>::value, "error: type mismatch.");
 				if (isJust(r_)) return *this;
@@ -719,7 +719,7 @@ namespace fcl
 			}
 
 			template<template<typename> typename ctor, typename = std::enable_if_t<variant_traits<a>::has_default::value>>
-			pattern& match(const Function<r, ctor<typename variant_traits<a>::default_type>>& f)
+			pattern& match(const function<r, ctor<typename variant_traits<a>::default_type>>& f)
 			{
 				using b = ctor<typename variant_traits<a>::default_type>;
 				return match<b>(f);

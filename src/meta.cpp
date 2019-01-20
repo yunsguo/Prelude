@@ -72,7 +72,7 @@ int main()
 
 	std::cout << std::endl << "util::type::infer() test: " << std::endl;
 
-	std::cout << util::type<TMP::List<int, char, bool, float>>::infer() << std::endl;
+	std::cout << util::type<TMP::list<int, char, bool, float>>::infer() << std::endl;
 
 	std::cout << util::type<std::tuple<int, wchar_t, bool, nullptr_t>>::infer() << std::endl;
 }

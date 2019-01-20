@@ -43,17 +43,17 @@
 namespace fcl
 {
 	//corrisponding to () in Haskell, a type meant to be discarded
-	using NA = std::tuple<>;
+	using na = std::tuple<>;
 
 	template<typename a, typename b>
-	using Pair = std::pair<a, b>;
+	using pair = std::pair<a, b>;
 
 	template<typename ...as>
-	using Tuple = std::tuple<as...>;
+	using tuple = std::tuple<as...>;
 
 	//generic function container in the form of r function(a first, as... args)
 	template<typename r, typename a, typename ...as>
-	struct Function;
+	struct function;
 
 	//indirect TMF function definition
 	template<typename f>
@@ -62,15 +62,15 @@ namespace fcl
 		//possess trait or not
 		using possess = std::false_type;
 		//a Pack with a haskell style ordering
-		using type = TMP::Pack<NA, NA>;
+		using type = TMP::Pack<na, na>;
 		//common partial applied type
-		using applied = NA;
+		using applied = na;
 		//reversed partial applied type for monad operation
-		using monadic_applied = NA;
+		using monadic_applied = na;
 		//first parameter, last for monadic
-		using head = NA;
+		using head = na;
 		//laster parameter, first for monadic
-		using last = NA;
+		using last = na;
 
 		//apply the first parameter and return an partially applied function
 		static applied apply(const f&, head&&);
@@ -140,11 +140,11 @@ namespace fcl
 		//for instance if std::vector<int> is a variant probably has a default type int
 		using has_default = std::false_type;
 
-		using default_type = NA;
+		using default_type = na;
 
 		//meta function check type could be a variant
 		template<typename a>
-		using elem = TMP::elem<TMP::List<>, a>;
+		using elem = TMP::elem<TMP::list<>, a>;
 
 		//rumtime check containing this type a
 		template<typename a>
@@ -200,14 +200,14 @@ namespace fcl
 	struct Traversable;
 }
 
-//give Function and variant TMP list trait for easier readability
+//give function and variant TMP list trait for easier readability
 namespace TMP
 {
 	template<typename r, typename a, typename ...as>
-	struct list_trait <fcl::Function<r, a, as...>> { using type = List<a, as..., r>; };
+	struct list_trait <fcl::function<r, a, as...>> { using type = list<a, as..., r>; };
 
 	template<typename a, typename b, typename ...rest>
-	struct list_trait<fcl::variant<a, b, rest...>> { using type = List<a, b, rest...>; };
+	struct list_trait<fcl::variant<a, b, rest...>> { using type = list<a, b, rest...>; };
 }
 
 namespace details
@@ -260,7 +260,7 @@ namespace util
 	struct type<TwoCharSeparated<c, d, Pack<a, as...>>> { static std::string infer() { return type<a>::infer() + c + d + type<TwoCharSeparated<c, d, Pack<as...>>>::infer(); } };
 
 	template<typename r, typename ...as>
-	struct type<fcl::Function<r, as...>> { static std::string infer() { return type<TwoCharSeparated<'-', '>', typename fcl::function_traits<fcl::Function<r, as...>>::type>>::infer(); } };
+	struct type<fcl::function<r, as...>> { static std::string infer() { return type<TwoCharSeparated<'-', '>', typename fcl::function_traits<fcl::function<r, as...>>::type>>::infer(); } };
 
 	template<typename a, typename b, typename ...rest>
 	struct type<fcl::variant<a, b, rest...>> { static std::string infer() { return type<CharSeparated<'|', TMP::Pack<a, b, rest...>>>::infer(); } };

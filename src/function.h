@@ -19,15 +19,15 @@
 *	monadic partial apply (reversed order) with operator>>=
 *
 *   Public Interface:
-*	Function<int,int> k = unary_function;
-*	Function<int,int> l(unary_function);
-*	Function<int,int,int,int,int> m(sum_4);
+*	function<int,int> k = unary_function;
+*	function<int,int> l(unary_function);
+*	function<int,int,int,int,int> m(sum_4);
 *	l = k;
 *	k = std::move(l);
 *	int r = k(1);
 *	int r1 = k << 1;
 *	int r2 = m << 1 << 2 << 3 << 4;
-*	Function<int,int,int> am = m << 1 << 2;
+*	function<int,int,int> am = m << 1 << 2;
 *	int r3 = am(3,4);
 *	int r4 = 4 >>= 3 >>= 2 >>= 1 >>= m;
 *   int r5 = 4 >>= 3 >>= am;
@@ -112,7 +112,7 @@ namespace details
 
 	//take parameters start from index of front and end with index of back
 	template<size_t front, size_t back, typename ...as>
-	using inferred_para_list = typename TMP::take<typename TMP::drop<TMP::List<as...>, front>::type, TMP::length<TMP::List<as...>>::value - front - back>::type;
+	using inferred_para_list = typename TMP::take<typename TMP::drop<TMP::list<as...>, front>::type, TMP::length<TMP::list<as...>>::value - front - back>::type;
 
 	//functor operator overload and invoke interface
 	template<typename r, typename list_of_a>
@@ -151,7 +151,7 @@ namespace details
 	{
 		using applicable = details::applicable<r, details::inferred_para_list<fi, bi, as...>>;
 
-		using para_list = TMP::List<as...>;
+		using para_list = TMP::list<as...>;
 
 		enum { length = sizeof...(as) };
 
@@ -225,11 +225,11 @@ namespace details
 
 	//bedrock implementation with a target function
 	template<typename r, typename ...as>
-	struct func_container<0, 0, r, as...> :public details::applicable<r, TMP::List<as...>>
+	struct func_container<0, 0, r, as...> :public details::applicable<r, TMP::list<as...>>
 	{
-		using applicable = details::applicable<r, TMP::List<as...>>;
+		using applicable = details::applicable<r, TMP::list<as...>>;
 
-		using para_list = TMP::List<as...>;
+		using para_list = TMP::list<as...>;
 
 		enum { length = sizeof...(as) };
 
@@ -297,7 +297,7 @@ namespace details
 	{
 		using applicable = details::applicable<r, details::inferred_para_list<fi, 0, as...>>;
 
-		using para_list = TMP::List<as...>;
+		using para_list = TMP::list<as...>;
 
 		enum { length = sizeof...(as) };
 
@@ -371,7 +371,7 @@ namespace details
 	{
 		using applicable = details::applicable<r, details::inferred_para_list<0, bi, as...>>;
 
-		using para_list = TMP::List<as...>;
+		using para_list = TMP::list<as...>;
 
 		enum { length = sizeof...(as) };
 
@@ -443,17 +443,17 @@ namespace details
 	struct conversion_helper;
 
 	template<typename r, typename ...as>
-	struct conversion_helper<r, TMP::Pack<as...>> { using type = fcl::Function<r, as...>; };
+	struct conversion_helper<r, TMP::Pack<as...>> { using type = fcl::function<r, as...>; };
 
 	//return the type after a reverse apply(backwards)
 	template<typename f>
 	struct reverse_apply;
 
 	template<typename r, typename a, typename b, typename ...rest>
-	struct reverse_apply<fcl::Function<r, a, b, rest...>> { using type = typename conversion_helper<r, TMP::to_pack_t<TMP::init_t<TMP::List<a, b, rest...>>>>::type; };
+	struct reverse_apply<fcl::function<r, a, b, rest...>> { using type = typename conversion_helper<r, TMP::to_pack_t<TMP::init_t<TMP::list<a, b, rest...>>>>::type; };
 
 	template<typename r, typename a>
-	struct reverse_apply<fcl::Function<r, a>> { using type = r; };
+	struct reverse_apply<fcl::function<r, a>> { using type = r; };
 }
 
 namespace fcl
@@ -461,38 +461,38 @@ namespace fcl
 
 	//function container definition
 	template<typename r, typename a, typename b, typename ...rest>
-	struct Function<r, a, b, rest...>
+	struct function<r, a, b, rest...>
 	{
 		template<typename r1, typename b1, typename ...bs>
-		friend struct Function;
+		friend struct function;
 		template<typename f1>
 		friend struct function_traits;
 
 	private:
 		using func_ptr = details::func_ptr<r, a, b, rest...>;
 		using func_con = details::func_container<0, 0, r, a, b, rest...>;
-		using applicable = details::applicable<r, TMP::List<a, b, rest...>>;
+		using applicable = details::applicable<r, TMP::list<a, b, rest...>>;
 
 	public:
 
-		using monadic_applied = monadic_applied_type<Function>;
-		using last = last_parameter<Function>;
+		using monadic_applied = monadic_applied_type<function>;
+		using last = last_parameter<function>;
 
 		template<typename f, typename = std::enable_if_t<std::is_convertible<f, func_ptr>::value>>
-		Function(f ptr) :ptr_(new func_con(ptr)) {}
+		function(f ptr) :ptr_(new func_con(ptr)) {}
 
-		Function(const Function& other) :ptr_(other.ptr_->new_ptr()) {}
+		function(const function& other) :ptr_(other.ptr_->new_ptr()) {}
 
-		Function(Function&& other) :ptr_(other.ptr_) { other.ptr_ = nullptr; }
+		function(function&& other) :ptr_(other.ptr_) { other.ptr_ = nullptr; }
 
-		Function& operator=(const Function& other)
+		function& operator=(const function& other)
 		{
 			if (&other != this)
 				ptr_ = other.ptr_->new_ptr();
 			return *this;
 		}
 
-		Function& operator=(Function && other)
+		function& operator=(function && other)
 		{
 			ptr_ = other.ptr_;
 			other.ptr_ = nullptr;
@@ -501,49 +501,49 @@ namespace fcl
 
 		r operator()(a first, b second, rest...args)const { return ptr_->invoke(std::forward_as_tuple(first, second, args...)); }
 
-		~Function() { delete ptr_; }
+		~function() { delete ptr_; }
 
 
 	private:
 
 		applicable * ptr_;
 
-		Function() :ptr_(nullptr) {};
-		Function(applicable* ptr) :ptr_(ptr) {};
+		function() :ptr_(nullptr) {};
+		function(applicable* ptr) :ptr_(ptr) {};
 	};
 
 	//unary function container definition
 	template<typename r, typename a>
-	struct Function<r, a>
+	struct function<r, a>
 	{
 
 		template<typename r1, typename b1, typename ...bs>
-		friend struct Function;
+		friend struct function;
 		template<typename f1>
 		friend struct function_traits;
 
 	private:
 		using func_ptr = details::func_ptr<r, a>;
 		using func_con = details::func_container<0, 0, r, a>;
-		using applicable = details::applicable<r, TMP::List<a>>;
+		using applicable = details::applicable<r, TMP::list<a>>;
 
 	public:
 
 		template<typename f, typename = std::enable_if_t<std::is_convertible<f, func_ptr>::value>>
-		Function(f ptr) :ptr_(new func_con(ptr)) {}
+		function(f ptr) :ptr_(new func_con(ptr)) {}
 
-		Function(const Function& other) :ptr_(other.ptr_->new_ptr()) {}
+		function(const function& other) :ptr_(other.ptr_->new_ptr()) {}
 
-		Function(Function&& other) :ptr_(other.ptr_) { other.ptr_ = nullptr; }
+		function(function&& other) :ptr_(other.ptr_) { other.ptr_ = nullptr; }
 
-		Function& operator=(const Function& other)
+		function& operator=(const function& other)
 		{
 			if (&other != this)
 				ptr_ = other.ptr_->new_ptr();
 			return *this;
 		}
 
-		Function& operator=(Function&& other)
+		function& operator=(function&& other)
 		{
 			ptr_ = other.ptr_;
 			other.ptr_ = nullptr;
@@ -552,25 +552,25 @@ namespace fcl
 
 		r operator()(a arg)const { return ptr_->invoke(std::forward_as_tuple(arg)); }
 
-		~Function() { delete ptr_; }
+		~function() { delete ptr_; }
 
 	private:
 
 		applicable * ptr_;
 
-		Function() :ptr_(nullptr) {};
-		Function(applicable* ptr) :ptr_(ptr) {};
+		function() :ptr_(nullptr) {};
+		function(applicable* ptr) :ptr_(ptr) {};
 	};
 
 	//function type trait definition
 	template<typename r, typename a, typename b, typename ...rest>
-	struct function_traits<Function<r, a, b, rest...>>
+	struct function_traits<function<r, a, b, rest...>>
 	{
-		using f = Function<r, a, b, rest...>;
+		using f = function<r, a, b, rest...>;
 		using possess = std::true_type;
 		using type = TMP::Pack<a, b, rest..., r>;
-		using applied = Function<r, b, rest...>;
-		using monadic_applied = typename details::reverse_apply<Function<r, a, b, rest...>>::type;
+		using applied = function<r, b, rest...>;
+		using monadic_applied = typename details::reverse_apply<function<r, a, b, rest...>>::type;
 		using head = a;
 		using last = TMP::last_t<TMP::Pack<a, b, rest...>>;
 
@@ -587,9 +587,9 @@ namespace fcl
 
 	//unary function type trait definition
 	template<typename r, typename a>
-	struct function_traits<Function<r, a>>
+	struct function_traits<function<r, a>>
 	{
-		using f = Function<r, a>;
+		using f = function<r, a>;
 		using possess = std::true_type;
 		using type = TMP::Pack<a, r>;
 		using applied = r;

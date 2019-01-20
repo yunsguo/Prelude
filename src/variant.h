@@ -57,7 +57,7 @@ namespace fcl
 	template<typename a, typename b, typename ...rest>
 	struct variant
 	{
-		using list = TMP::List<a, b, rest...>;
+		using list = TMP::list<a, b, rest...>;
 
 		friend variant_traits<variant<a, b, rest...>>;
 
@@ -173,7 +173,7 @@ namespace fcl
 
 		using def = variant<a, b, rest...>;
 
-		using list = TMP::List<a, b, rest...>;
+		using list = TMP::list<a, b, rest...>;
 
 		template<typename T>
 		using elem = TMP::elem<list, T>;

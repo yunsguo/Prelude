@@ -45,7 +45,7 @@ namespace fcl
 {
 
 	template<typename a>
-	using Reaction = Maybe<Pair<a, std::string>>;
+	using Reaction = Maybe<pair<a, std::string>>;
 
 	template<typename a>
 	struct Parser;
@@ -56,11 +56,11 @@ namespace fcl
 	template<typename a>
 	struct Parser
 	{
-		template<typename l, typename = std::enable_if_t<std::is_convertible<l, Function<Reaction<a>, std::string>>::value>>
+		template<typename l, typename = std::enable_if_t<std::is_convertible<l, function<Reaction<a>, std::string>>::value>>
 		Parser(l lambda) :P(lambda) {}
 		friend Reaction<a> parse<>(const Parser<a>&, std::string);
 	private:
-		Function<Reaction<a>, std::string> P;
+		function<Reaction<a>, std::string> P;
 	};
 
 	template<typename a>
@@ -87,7 +87,7 @@ namespace fcl
 		template<typename a>
 		static Parser<a> pure(a&& value)
 		{
-			const static Function<Reaction<a>, a, std::string> pure_impl =
+			const static function<Reaction<a>, a, std::string> pure_impl =
 				[](a val, std::string inp)->Reaction<a>
 			{
 				return reaction(std::move(val), std::move(inp));
@@ -105,7 +105,7 @@ namespace fcl
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
 		static Parser<applied_type<f>> fmap(f&& f_, Parser<head_parameter<f>>&& pa)
 		{
-			const static Function<Reaction<applied_type<f>>, f, Parser<head_parameter<f>>, std::string> fmap_impl =
+			const static function<Reaction<applied_type<f>>, f, Parser<head_parameter<f>>, std::string> fmap_impl =
 				[](f func, Parser<head_parameter<f>> pa, std::string inp)->Reaction<applied_type<f>>
 			{
 				auto r = parse(pa, std::move(inp));
@@ -120,7 +120,7 @@ namespace fcl
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
 		static Parser<monadic_applied_type<f>> monadic_fmap(const f& f_, Parser<last_parameter<f>>&& pa)
 		{
-			const static Function<Reaction<monadic_applied_type<f>>, f, Parser<last_parameter<f>>, std::string> fmap_impl =
+			const static function<Reaction<monadic_applied_type<f>>, f, Parser<last_parameter<f>>, std::string> fmap_impl =
 				[](f func, Parser<last_parameter<f>> pa, std::string inp)->Reaction<monadic_applied_type<f>>
 			{
 				auto r = parse(pa, std::move(inp));
@@ -144,7 +144,7 @@ namespace fcl
 		template<typename a>
 		static Parser<a> alter(Parser<a>&& p, Parser<a>&& q)
 		{
-			const static Function<Reaction<a>, Parser<a>, Parser<a>, std::string> alter_impl =
+			const static function<Reaction<a>, Parser<a>, Parser<a>, std::string> alter_impl =
 				[](Parser<a> p1, Parser<a> q1, std::string inp)->Reaction<a>
 			{
 				auto r = parse(p1, inp);
@@ -164,7 +164,7 @@ namespace fcl
 		template<typename f, typename = std::enable_if_t<is_function<f>::value>>
 		static Parser<monadic_applied_type<f>> sequence(Parser<f>&& pf, Parser<last_parameter<f>>&& pa)
 		{
-			const static Function<Reaction<monadic_applied_type<f>>, Parser<last_parameter<f>>, Parser<f>, std::string> seq_impl =
+			const static function<Reaction<monadic_applied_type<f>>, Parser<last_parameter<f>>, Parser<f>, std::string> seq_impl =
 				[](Parser<last_parameter<f>> pa1, Parser<f> pf1, std::string inp)->Reaction<monadic_applied_type<f>>
 			{
 				auto ra = parse(pa1, std::move(inp));
@@ -182,7 +182,7 @@ namespace fcl
 		template<typename a, typename b>
 		static Parser<b> compose(Parser<a>&& p, Parser<b>&& q)
 		{
-			const static Function<Reaction<b>, Parser<a>, Parser<b>, std::string> compose_impl =
+			const static function<Reaction<b>, Parser<a>, Parser<b>, std::string> compose_impl =
 				[](Parser<a> p1, Parser<b> q1, std::string inp)->Reaction<b>
 			{
 				auto r = parse(p1, std::move(inp));
@@ -196,7 +196,7 @@ namespace fcl
 
 	Reaction<char> item(std::string inp);
 
-	Parser<char> sat(Function<bool, char> p);
+	Parser<char> sat(function<bool, char> p);
 
 	Reaction<char> digit(std::string inp);
 
@@ -224,7 +224,7 @@ namespace fcl
 
 	Reaction<int> inte(std::string inp);
 
-	Reaction<NA> space(std::string inp);
+	Reaction<na> space(std::string inp);
 
 	Reaction<std::string> identifier(std::string inp);
 
@@ -236,7 +236,7 @@ namespace fcl
 
 	std::string cons_str(char c, std::string str);
 
-	Pair<char, std::string> uncons_str(std::string str);
+	pair<char, std::string> uncons_str(std::string str);
 
 	std::string concat_str(std::string, std::string);
 
@@ -247,19 +247,19 @@ namespace fcl
 	Parser<std::string> some(Parser<char> p);
 
 	template<typename a>
-	Parser<List<a>> maybe_one(Parser<a> p);
+	Parser<list<a>> maybe_one(Parser<a> p);
 
 	template<typename a>
-	Parser<List<a>> any(Parser<a> p);
+	Parser<list<a>> any(Parser<a> p);
 
 	template<typename a>
-	Parser<List<a>> some(Parser<a> p);
+	Parser<list<a>> some(Parser<a> p);
 
 	template<typename a>
 	Parser<a> token(Parser<a> p)
 	{
-		const static auto Fid = Function<a, a>(id<a>);
-		const static auto Fspace = Parser<NA>(space);
+		const static auto Fid = function<a, a>(id<a>);
+		const static auto Fspace = Parser<na>(space);
 		return
 			Fspace >>
 			p >>=
@@ -288,31 +288,31 @@ namespace fcl
 	//implenmentation
 
 	template<typename a>
-	inline Parser<List<a>> maybe_one(Parser<a> p)
+	inline Parser<list<a>> maybe_one(Parser<a> p)
 	{
-		const static Function<Reaction<List<a>>, Parser<a>, std::string> maybe_one_impl =
-			[](Parser<a> p1, std::string inp)->Reaction<List<a>>
+		const static function<Reaction<list<a>>, Parser<a>, std::string> maybe_one_impl =
+			[](Parser<a> p1, std::string inp)->Reaction<list<a>>
 		{
 			auto r = parse(p1, inp);
-			if (isNothing(r)) return reaction(List<a>(), std::move(inp));
+			if (isNothing(r)) return reaction(list<a>(), std::move(inp));
 			auto pair = fromJust(r);
-			return reaction(List<a>{pair.first}, std::move(pair.second));
+			return reaction(list<a>{pair.first}, std::move(pair.second));
 		};
 
 		return maybe_one_impl << p;
 	}
 
 	template<typename a>
-	inline Parser<List<a>> any(Parser<a> p)
+	inline Parser<list<a>> any(Parser<a> p)
 	{
-		const static Function<Reaction<List<a>>, Parser<a>, std::string> any_impl =
-			[](Parser<a> p, std::string inp) ->Reaction<List<a>>
+		const static function<Reaction<list<a>>, Parser<a>, std::string> any_impl =
+			[](Parser<a> p, std::string inp) ->Reaction<list<a>>
 		{
 			auto r = parse(p, inp);
 			if (isNothing(r))
-				return reaction(List<a>(), std::move(inp));
+				return reaction(list<a>(), std::move(inp));
 			auto pair = fromJust(r);
-			List<a> ans;
+			list<a> ans;
 			std::string inpn;
 			while (true)
 			{
@@ -327,9 +327,9 @@ namespace fcl
 	}
 
 	template<typename a>
-	inline Parser<List<a>> some(Parser<a> p)
+	inline Parser<list<a>> some(Parser<a> p)
 	{
-		const static auto Fcons = Function<List<a>, a, List<a>>(cons<a>);
+		const static auto Fcons = function<list<a>, a, list<a>>(cons<a>);
 		return
 			p >>=
 			any<a>(p) >>=

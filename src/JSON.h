@@ -6,23 +6,21 @@
 
 namespace JSON
 {
-	using fcl::List;
-	using fcl::Pair;
 
 	struct True {};
 	struct False {};
 	struct Null {};
 
-	struct String { List<char32_t> value; };
+	struct String { fcl::list<char32_t> value; };
 	struct Number { float value; };
 
 	struct Array;
 	struct Object;
 	struct Value;
 
-	struct Array { List<Value> value; };
+	struct Array { fcl::list<Value> value; };
 
-	struct Object { List<Pair<String, Value>> value; };
+	struct Object { fcl::list<fcl::pair<String, Value>> value; };
 
 	using VD = fcl::variant<String, Number, Object, Array, True, False, Null>;
 
@@ -58,7 +56,7 @@ namespace JSON
 
 	fcl::Reaction<Array> array(std::string inp);
 
-	Pair<String, Value> pair(String str, Value val);
+	fcl::pair<String, Value> pair(String str, Value val);
 
 	fcl::Reaction<Object> object(std::string inp);
 }

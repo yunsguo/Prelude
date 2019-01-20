@@ -18,10 +18,10 @@ Reaction<char> fcl::item(std::string inp)
 	return uncons_str(inp);
 }
 
-Parser<char> fcl::sat(Function<bool, char> p)
+Parser<char> fcl::sat(function<bool, char> p)
 {
-	const static Function<Reaction<char>, Function<bool, char>, std::string> sat_impl =
-		[](Function<bool, char> p, std::string inp)->Reaction<char>
+	const static function<Reaction<char>, function<bool, char>, std::string> sat_impl =
+		[](function<bool, char> p, std::string inp)->Reaction<char>
 	{
 		if (inp.length() == 0) return Nothing();
 		auto pair = uncons_str(inp);
@@ -76,7 +76,7 @@ Reaction<char> fcl::alphanumeric(std::string inp)
 
 Parser<char> fcl::character(char c)
 {
-	const static auto char_equal = Function<bool, char, char>([](char a, char b)-> bool {return a == b; });
+	const static auto char_equal = function<bool, char, char>([](char a, char b)-> bool {return a == b; });
 	return sat(char_equal << c);
 }
 
@@ -87,7 +87,7 @@ Parser<std::string> fcl::string(std::string str)
 	const static auto Mempty_str = Injector<Parser>::pure<std::string>("");
 	if (str.length() == 0) return Mempty_str;
 
-	const static auto Fcons = Function<std::string, char, std::string>(cons_str);
+	const static auto Fcons = function<std::string, char, std::string>(cons_str);
 	auto pair = uncons_str(str);
 	return
 		character(pair.first) >>=
@@ -100,7 +100,7 @@ Reaction<std::string> fcl::ident(std::string inp)
 	const static auto P =
 		lower >>=
 		any(alphanumeric) >>=
-		Function<std::string, char, std::string>(cons_str)
+		function<std::string, char, std::string>(cons_str)
 		;
 
 	return parse(P, std::move(inp));
@@ -110,7 +110,7 @@ Reaction<int> fcl::nat(std::string inp)
 {
 	const static auto P =
 		some(Parser<char>(digit)) >>=
-		Function<int, std::string>([](std::string str)->int {return std::stoi(str); })
+		function<int, std::string>([](std::string str)->int {return std::stoi(str); })
 		;
 
 	return parse(P, std::move(inp));
@@ -122,7 +122,7 @@ Reaction<int> fcl::inte(std::string inp)
 		(
 			character('-') >>
 			Parser<int>(nat) >>=
-			Function<int, int>([](int n) { return -1 * n; })
+			function<int, int>([](int n) { return -1 * n; })
 			)
 		||
 		Parser<int>(nat)
@@ -131,11 +131,11 @@ Reaction<int> fcl::inte(std::string inp)
 	return parse(P, std::move(inp));
 }
 
-Reaction<NA> fcl::space(std::string inp)
+Reaction<na> fcl::space(std::string inp)
 {
 	const static auto P =
-		any(sat(Function<bool, char>([](char c)->bool { return isspace(c); }))) >>
-		Injector<Parser>::pure<NA>(NA())
+		any(sat(function<bool, char>([](char c)->bool { return isspace(c); }))) >>
+		Injector<Parser>::pure<na>(na())
 		;
 	return parse(P, std::move(inp));
 }
@@ -162,7 +162,7 @@ Parser<std::string> fcl::symbol(std::string str) { return token<std::string>(str
 
 std::string fcl::cons_str(char c, std::string str) { return c + str; }
 
-Pair<char, std::string> fcl::uncons_str(std::string str)
+pair<char, std::string> fcl::uncons_str(std::string str)
 {
 	return std::make_pair<char, std::string>(std::move(str[0]), str.substr(1, -1));
 }
@@ -171,7 +171,7 @@ std::string fcl::concat_str(std::string a, std::string b) { return a + b; }
 
 Parser<std::string> fcl::maybe_one(Parser<char> p)
 {
-	const static Function<Reaction<std::string>, Parser<char>, std::string> maybe_one_impl =
+	const static function<Reaction<std::string>, Parser<char>, std::string> maybe_one_impl =
 		[](Parser<char> p1, std::string inp)->Reaction<std::string>
 	{
 		auto r = parse(p1, inp);
@@ -185,7 +185,7 @@ Parser<std::string> fcl::maybe_one(Parser<char> p)
 
 Parser<std::string> fcl::any(Parser<char> p)
 {
-	const static Function<Reaction<std::string>, Parser<char>, std::string> any_impl =
+	const static function<Reaction<std::string>, Parser<char>, std::string> any_impl =
 		[](Parser<char> p, std::string inp)->Reaction<std::string>
 	{
 		auto r = parse(p, inp);
@@ -209,7 +209,7 @@ Parser<std::string> fcl::any(Parser<char> p)
 
 Parser<std::string> fcl::some(Parser<char> p)
 {
-	const static auto Mcons = Function<std::string, char, std::string>(cons_str);
+	const static auto Mcons = function<std::string, char, std::string>(cons_str);
 	return
 		p >>=
 		any(p) >>=
@@ -226,7 +226,7 @@ Reaction<int> fcl::expr(std::string inp)
 			Parser<int>(term) >>=
 			character('+') >>
 			Parser<int>(expr) >>=
-			Function<int, int, int>(add)
+			function<int, int, int>(add)
 			)
 		||
 		Parser<int>(term)
@@ -241,7 +241,7 @@ Reaction<int> fcl::term(std::string inp)
 		(Parser<int>(factor) >>=
 			character('*') >>
 			Parser<int>(term) >>=
-			Function<int, int, int>(mul))
+			function<int, int, int>(mul))
 		||
 		Parser<int>(factor)
 		;
@@ -254,14 +254,14 @@ Reaction<int> fcl::factor(std::string inp)
 	const static auto P =
 		(
 			Parser<char>(digit) >>=
-			Function<int, char>(digitToInt)
+			function<int, char>(digitToInt)
 			)
 		||
 		(
 			character('(') >>
 			Parser<int>(expr) >>=
 			character(')') >>
-			Function<int, int>(id<int>)
+			function<int, int>(id<int>)
 			)
 		;
 
