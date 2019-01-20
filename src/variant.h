@@ -102,12 +102,15 @@ namespace fcl
 
 	private:
 
+		void * ptr_;
+		int index_;
+
 		template<typename U, typename std::enable_if_t<TMP::elem<list, U>::value>>
 		variant(U* ptr) :index_(TMP::elem_index<U, list>::value), ptr_(ptr) {}
 
 		//bisection search convert runtime int to a compile-time one
 		//might take a while if variant contains a lot of types
-		//for instance for a variant of 5, instantiations would be 5 destruct() and 11 try_destruct()
+		//for instance for a variant of 5, deallocation would means 5 destruct() and 11 try_destruct()
 		//adding copy methods gives us 32 different methods
 		template<int N, int M>
 		void try_destruct(int i)
@@ -157,9 +160,6 @@ namespace fcl
 				try_copy<pivot, M>(ptr);
 			else try_copy<N, pivot>(ptr);
 		}
-
-		void * ptr_;
-		int index_;
 	};
 
 	//variant variant traits implenmentation

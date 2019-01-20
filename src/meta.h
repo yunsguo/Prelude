@@ -72,8 +72,10 @@ namespace fcl
 		//laster parameter, first for monadic
 		using last = NA;
 
+		//apply the first parameter and return an partially applied function
 		static applied apply(const f&, head&&);
 
+		//apply the last parameter and return an partially applied function
 		static monadic_applied monadic_apply(const f&, last&&);
 
 	};
@@ -96,6 +98,7 @@ namespace fcl
 	template<typename f>
 	using last_parameter = typename function_traits<f>::last;
 
+	//forward apply operation
 	template<typename f, typename = std::enable_if_t<is_function<f>::value>>
 	applied_type<f> operator<<(const f& func, head_parameter<f>&& arg)
 	{

@@ -50,6 +50,7 @@
 
 namespace details
 {
+	//return the index of the first occurance of a type which is equvenlent of an compile time boolean true
 	template<typename ...as>
 	struct first_true_index;
 
@@ -65,12 +66,14 @@ namespace details
 		return  std::make_tuple(std::get<Ns + 1u>(t)...);
 	}
 
+	//return the last type of a tuple
 	template <typename... Ts >
 	auto tail(std::tuple<Ts...>&& t)
 	{
 		return  tail_impl(std::make_index_sequence<sizeof...(Ts) - 1u>(), std::forward<std::tuple<Ts...>>(t));
 	}
 
+	//return true if list2 is a legal form of list1 variant wise(does not have to match each element). 
 	template<typename list1, typename list2>
 	struct are_legal;
 
@@ -86,6 +89,7 @@ namespace details
 	template<typename a, typename b>
 	struct are_legal<TMP::Nil, TMP::Cons<a, b>> :public std::false_type {};
 
+	//return true if all types are of type class Show
 	template<typename a, typename ...as>
 	struct are_show;
 
@@ -98,9 +102,11 @@ namespace details
 	template<typename a, typename...as>
 	struct pattern
 	{
+		//runtime check if parameters are of matched type
 		template<typename b, typename ...bs>
 		static bool match(a first, as...args) { return variant_traits<a>::template is_of<b>(first) && pattern<as...>::template match<bs...>(args...); }
 
+		//extract parameters in the template form as a tuple
 		template<typename b, typename ...bs>
 		static std::tuple<b, bs...> gets(a first, as...args) { return std::tuple_cat(std::make_tuple<b>(variant_traits<a>::template move<b>(first)), pattern<as...>::template gets<bs...>(args...)); }
 	};
@@ -108,9 +114,11 @@ namespace details
 	template<typename a>
 	struct pattern<a>
 	{
+		//runtime check if the parameter is of matched type
 		template<typename b>
 		static bool match(a first) { return variant_traits<a>::template is_of<b>(first); }
 
+		//extract the parameter in the template form as a tuple
 		template<typename b>
 		static std::tuple<b> gets(a first) { return std::make_tuple<b>(variant_traits<a>::template move<b>(first)); }
 	};

@@ -53,9 +53,9 @@
 
 #include "meta.h"
 
+// implement std::apply(f,args...) if no c17 available.
 #if _HAS_CXX17
 #else
-
 namespace details
 {
 	template<class F, class Tuple, std::size_t... I>
@@ -81,7 +81,7 @@ namespace std
 
 namespace details
 {
-
+	//decay type of pack to cons
 	template<typename pack_of_a>
 	struct decays;
 
@@ -100,15 +100,17 @@ namespace details
 	template<typename r, typename ...as>
 	struct inferred_helper<r, TMP::Pack<as...>> { static r invoke(as...arg); };
 
+	//infer an arbitrary function type
 	template<typename r, typename ...as>
-	struct Inferred { using type = inferred_helper<r, typename decays<TMP::Pack<as...>>::type>; };
+	struct inferred { using type = inferred_helper<r, typename decays<TMP::Pack<as...>>::type>; };
 
 	//template<typename r, typename ...as>
 	//struct Inferred { static r invoke(as...arg); };
 
 	template<typename r, typename ...as>
-	using func_ptr = decltype(&Inferred<r, as...>::type::invoke);
+	using func_ptr = decltype(&inferred<r, as...>::type::invoke);
 
+	//take parameters start from index of front and end with index of back
 	template<size_t front, size_t back, typename ...as>
 	using inferred_para_list = typename TMP::take<typename TMP::drop<TMP::List<as...>, front>::type, TMP::length<TMP::List<as...>>::value - front - back>::type;
 
@@ -138,16 +140,12 @@ namespace details
 
 		virtual ~applicable() {}
 	};
-}
 
-
-
-namespace details
-{
 	//function concept concrete instance for type erasure
 	template<size_t fi, size_t bi, typename r, typename ...as>
 	struct func_container;
 
+	//general implementation
 	template<size_t fi, size_t bi, typename r, typename ...as>
 	struct func_container :public details::applicable<r, details::inferred_para_list<fi, bi, as...>>
 	{
@@ -225,6 +223,7 @@ namespace details
 		back_tuple bt_;
 	};
 
+	//bedrock implementation with a target function
 	template<typename r, typename ...as>
 	struct func_container<0, 0, r, as...> :public details::applicable<r, TMP::List<as...>>
 	{
@@ -292,6 +291,7 @@ namespace details
 		details::func_ptr<r, as...> ptr_;
 	};
 
+	//pure forward applied implementation
 	template<size_t fi, typename r, typename ...as>
 	struct func_container<fi,0,r,as...> :public details::applicable<r, details::inferred_para_list<fi, 0, as...>>
 	{
@@ -364,6 +364,8 @@ namespace details
 		front_tuple ft_;
 	};
 
+
+	//pure backward applied implementation
 	template<size_t bi, typename r, typename ...as>
 	struct func_container<0,bi,r,as...> :public details::applicable<r, details::inferred_para_list<0, bi, as...>>
 	{
@@ -436,12 +438,14 @@ namespace details
 		back_tuple bt_;
 	};
 
+	//return the function type given an return type and a pack of argument type
 	template<typename r, typename pack_of_a>
 	struct conversion_helper;
 
 	template<typename r, typename ...as>
 	struct conversion_helper<r, TMP::Pack<as...>> { using type = fcl::Function<r, as...>; };
 
+	//return the type after a reverse apply(backwards)
 	template<typename f>
 	struct reverse_apply;
 
