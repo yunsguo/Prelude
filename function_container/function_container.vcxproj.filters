@@ -24,12 +24,18 @@
     <ClInclude Include="..\src\TMP.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\shared_tuple.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\function.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\meta.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\shared_tuple.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -53,6 +53,10 @@
 
 #include "meta.h"
 
+#ifdef _COPY_ELISION_
+#include "shared_tuple.h"
+#endif
+
 // implement std::apply(f,args...) if no c17 available.
 #if _HAS_CXX17
 #else
@@ -141,6 +145,17 @@ namespace details
 		virtual ~applicable() {}
 	};
 
+#ifdef _COPY_ELISION_
+	template<typename a>
+	struct to_shared_tuple;
+
+	template<typename a>
+	using to_shared_tuple_t = typename to_shared_tuple<a>::type;
+
+	template<typename ...as>
+	struct to_shared_tuple<std::tuple<as...>> { using type = shared_tuple<as...>; };
+#endif
+
 	//function concept concrete instance for type erasure
 	template<size_t fi, size_t bi, typename r, typename ...as>
 	struct func_container;
@@ -155,9 +170,15 @@ namespace details
 
 		enum { length = sizeof...(as) };
 
+#ifdef _COPY_ELISION_
+		using front_tuple = to_shared_tuple_t<TMP::to_tuple_t<TMP::take_t<para_list, fi>>>;
+
+		using back_tuple = to_shared_tuple_t<TMP::to_tuple_t<TMP::drop_t<para_list, length - bi>>>;
+#else
 		using front_tuple = typename TMP::to_tuple<typename TMP::take<para_list, fi>::type>::type;
 
 		using back_tuple = typename TMP::to_tuple<typename TMP::drop<para_list, length - bi>::type>::type;
+#endif
 
 		using para_tuple = typename applicable::para_tuple;
 
@@ -182,25 +203,39 @@ namespace details
 		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
 		front_applied_type front_apply(front&& arg) const
 		{
-			auto ft(ft_);
 			auto bt(bt_);
-			return new func_container<fi + 1, bi, r, as...>(ptr_, std::tuple_cat(ft, std::make_tuple(arg)), std::move(bt));
+#ifdef _COPY_ELISION_
+			return new func_container<fi + 1, bi, r, as...>(ptr_, std::move(ft_.push_back(std::forward<front>(arg))), std::move(bt));
+#else
+			auto ft(ft_);
+			return new func_container<fi + 1, bi, r, as...>(ptr_, std::tuple_cat(std::move(ft), std::make_tuple(arg)), std::move(bt));
+#endif
 		}
 
 		template<typename = std::enable_if_t<applicable::is_unary::value>>
-		back_applied_type back_apply(back&& arg) const { return invoke(std::make_tuple(arg)); }
+		back_applied_type back_apply(back&& arg) const { return invoke(std::make_tuple(std::forward<back>(arg))); }
 
 		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
 		back_applied_type back_apply(back&& arg) const
 		{
 			auto ft(ft_);
+#ifdef _COPY_ELISION_
+			return new func_container<fi, bi + 1, r, as...>(ptr_, std::move(ft), std::move(bt_.push_front(std::forward<back>(arg))));
+#else
 			auto bt(bt_);
-			return new func_container<fi, bi + 1, r, as...>(ptr_, std::move(ft), std::tuple_cat(std::make_tuple(arg), bt));
+			return new func_container<fi, bi + 1, r, as...>(ptr_, std::move(ft), std::tuple_cat(std::make_tuple(arg), std::move(bt)));
+#endif
 		}
 
 		r invoke(para_tuple&& t)const override
 		{
-			return std::apply(ptr_, std::tuple_cat(ft_, std::forward<para_tuple>(t), bt_));
+#ifdef _COPY_ELISION_
+			return std::apply(ptr_, std::tuple_cat(ft_.to_tuple(), std::forward<para_tuple>(t), bt_.to_tuple()));
+#else
+			auto ft(ft_);
+			auto bt(bt_);
+			return std::apply(ptr_, std::tuple_cat(std::move(ft), std::forward<para_tuple>(t), std::move(bt)));
+#endif
 		}
 
 		typename applicable::front_applied_type push_front(front&& arg)const override
@@ -256,7 +291,11 @@ namespace details
 		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
 		front_applied_type front_apply(front&& arg) const
 		{
+#ifdef _COPY_ELISION_
+			return new func_container<1, 0, r, as...>(ptr_, shared_tuple<front>(std::forward<front>(arg)));
+#else
 			return new func_container<1, 0, r, as...>(ptr_, std::make_tuple(std::forward<front>(arg)));
+#endif
 		}
 
 		template<typename = std::enable_if_t<applicable::is_unary::value>>
@@ -265,7 +304,11 @@ namespace details
 		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
 		back_applied_type back_apply(back&& arg) const
 		{
+#ifdef _COPY_ELISION_
+			return new func_container<0, 1, r, as...>(ptr_, shared_tuple<back>(std::forward<back>(arg)));
+#else
 			return new func_container<0, 1, r, as...>(ptr_, std::make_tuple(std::forward<back>(arg)));
+#endif
 		}
 
 		r invoke(para_tuple&& t)const override
@@ -293,7 +336,7 @@ namespace details
 
 	//pure forward applied implementation
 	template<size_t fi, typename r, typename ...as>
-	struct func_container<fi,0,r,as...> :public details::applicable<r, details::inferred_para_list<fi, 0, as...>>
+	struct func_container<fi, 0, r, as...> :public details::applicable<r, details::inferred_para_list<fi, 0, as...>>
 	{
 		using applicable = details::applicable<r, details::inferred_para_list<fi, 0, as...>>;
 
@@ -301,7 +344,11 @@ namespace details
 
 		enum { length = sizeof...(as) };
 
+#ifdef _COPY_ELISION_
+		using front_tuple = to_shared_tuple_t<TMP::to_tuple_t<TMP::take_t<para_list, fi>>>;
+#else
 		using front_tuple = typename TMP::to_tuple<typename TMP::take<para_list, fi>::type>::type;
+#endif
 
 		using para_tuple = typename applicable::para_tuple;
 
@@ -326,23 +373,36 @@ namespace details
 		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
 		front_applied_type front_apply(front&& arg) const
 		{
+#ifdef _COPY_ELISION_
+			return new func_container<fi + 1, 0, r, as...>(ptr_, ft_.push_back(std::forward<front>(arg)));
+#else
 			auto ft(ft_);
-			return new func_container<fi + 1, 0, r, as...>(ptr_, std::tuple_cat(ft, std::make_tuple(arg)));
+			return new func_container<fi + 1, 0, r, as...>(ptr_, std::tuple_cat(std::move(ft), std::make_tuple(std::forward<front>(arg))));
+#endif
 		}
 
 		template<typename = std::enable_if_t<applicable::is_unary::value>>
-		back_applied_type back_apply(back&& arg) const { return invoke(std::make_tuple(arg)); }
+		back_applied_type back_apply(back&& arg) const { return invoke(std::make_tuple(std::forward<back>(arg))); }
 
 		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
 		back_applied_type back_apply(back&& arg) const
 		{
 			auto ft(ft_);
+#ifdef _COPY_ELISION_
+			return new func_container<fi, 1, r, as...>(ptr_, std::move(ft), shared_tuple<back>(std::forward<back>(arg)));
+#else
 			return new func_container<fi, 1, r, as...>(ptr_, std::move(ft), std::make_tuple(std::forward<back>(arg)));
+#endif
 		}
 
 		r invoke(para_tuple&& t)const override
 		{
-			return std::apply(ptr_, std::tuple_cat(ft_, std::forward<para_tuple>(t)));
+#ifdef _COPY_ELISION_
+			return std::apply(ptr_, std::tuple_cat(ft_.to_tuple(), std::forward<para_tuple>(t)));
+#else
+			auto ft(ft_);
+			return std::apply(ptr_, std::tuple_cat(std::move(ft), std::forward<para_tuple>(t)));
+#endif
 		}
 
 		typename applicable::front_applied_type push_front(front&& arg)const override
@@ -367,7 +427,7 @@ namespace details
 
 	//pure backward applied implementation
 	template<size_t bi, typename r, typename ...as>
-	struct func_container<0,bi,r,as...> :public details::applicable<r, details::inferred_para_list<0, bi, as...>>
+	struct func_container<0, bi, r, as...> :public details::applicable<r, details::inferred_para_list<0, bi, as...>>
 	{
 		using applicable = details::applicable<r, details::inferred_para_list<0, bi, as...>>;
 
@@ -375,7 +435,11 @@ namespace details
 
 		enum { length = sizeof...(as) };
 
+#ifdef _COPY_ELISION_
+		using back_tuple = to_shared_tuple_t<TMP::to_tuple_t<TMP::drop_t<para_list, length - bi>>>;
+#else
 		using back_tuple = typename TMP::to_tuple<typename TMP::drop<para_list, length - bi>::type>::type;
+#endif
 
 		using para_tuple = typename applicable::para_tuple;
 
@@ -401,7 +465,11 @@ namespace details
 		front_applied_type front_apply(front&& arg) const
 		{
 			auto bt(bt_);
+#ifdef _COPY_ELISION_
+			return new func_container<1, bi, r, as...>(ptr_, shared_tuple<front>(std::forward<front>(arg)), std::move(bt));
+#else
 			return new func_container<1, bi, r, as...>(ptr_, std::make_tuple(std::forward<front>(arg)), std::move(bt));
+#endif
 		}
 
 		template<typename = std::enable_if_t<applicable::is_unary::value>>
@@ -410,13 +478,22 @@ namespace details
 		template<typename = std::enable_if_t<!applicable::is_unary::value>, size_t = 0>
 		back_applied_type back_apply(back&& arg) const
 		{
+#ifdef _COPY_ELISION_
+			return new func_container<0, bi + 1, r, as...>(ptr_, std::move(bt_.push_front(std::forward<back>(arg))));
+#else
 			auto bt(bt_);
-			return new func_container<0, bi + 1, r, as...>(ptr_, std::tuple_cat(std::make_tuple(arg), bt));
+			return new func_container<0, bi + 1, r, as...>(ptr_, std::tuple_cat(std::make_tuple(arg), std::move(bt)));
+#endif
 		}
 
 		r invoke(para_tuple&& t)const override
 		{
-			return std::apply(ptr_, std::tuple_cat(std::forward<para_tuple>(t), bt_));
+#ifdef _COPY_ELISION_ 
+			return std::apply(ptr_, std::tuple_cat(std::forward<para_tuple>(t), bt_.to_tuple()));
+#else
+			auto bt(bt_);
+			return std::apply(ptr_, std::tuple_cat(std::forward<para_tuple>(t), std::move(bt)));
+#endif
 		}
 
 		typename applicable::front_applied_type push_front(front&& arg)const override

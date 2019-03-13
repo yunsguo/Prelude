@@ -16,6 +16,7 @@ using namespace fcl;
 void do1(nontrivial&& nt) { nontrivial test(std::forward<nontrivial>(nt)); }
 void do2(nontrivial& nt) { nt = nt + 1; }
 void do3(nontrivial nt) { nt = nt + 1; }
+void do4(nontrivial&& nt) { nt = nt + 1; }
 
 template<typename f>
 void test_with(f func, std::string str)
@@ -43,6 +44,8 @@ int main()
 
 	nontrivial test4(4);
 
+	nontrivial test5(5);
+
 	test_with([&]() {do1(std::move(test1)); }, "by rvalue ref");
 	std::cout << test1 << std::endl;
 
@@ -69,6 +72,8 @@ int main()
 
 
 	test_with([&]() {do3(nontrivial(4)); }, "by value passing implicit rvalue");
+
+	//test_with([&]() {do4(test5); }, "by rvalue ref passing value");
 
 	std::cout << std::endl << "util::type::infer() test: " << std::endl;
 

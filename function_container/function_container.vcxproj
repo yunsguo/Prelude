@@ -89,7 +89,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <PreprocessorDefinitions>FUNCTION_CPP;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>FUNCTION_CPP;_COPY_ELISION_;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -126,11 +126,13 @@
   <ItemGroup>
     <ClInclude Include="..\src\function.h" />
     <ClInclude Include="..\src\meta.h" />
+    <ClInclude Include="..\src\shared_tuple.h" />
     <ClInclude Include="..\src\TMP.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\function.cpp" />
     <ClCompile Include="..\src\meta.cpp" />
+    <ClCompile Include="..\src\shared_tuple.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
