@@ -45,6 +45,10 @@
 #include <variant>
 #include <string>
 
+#ifndef NATIVE_SHOW_BY_TO_STRING
+#include <sstream>
+#endif
+
 #include "tmp.h"
 #include "function.h"
 
