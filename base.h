@@ -45,7 +45,7 @@
 #include <variant>
 #include <string>
 
-#ifndef NATIVE_SHOW_BY_TO_STRING
+#ifdef NATIVE_SHOW_BY_SSTREAM
 #include <sstream>
 #endif
 
@@ -218,6 +218,8 @@ namespace fcl
         constexpr static bool equals(const A &one, const A &other);
     };
 
+#ifdef NATIVE_EQ_BY_EQUALITY
+
     template <typename T, typename Enable = void>
     struct __has_builtin_equality_operator : public std::false_type
     {
@@ -243,6 +245,19 @@ namespace fcl
     template <typename A, typename = std::enable_if_t<Eq<A>::pertain && !__has_builtin_equality_operator<A>::value>>
     constexpr bool operator!=(const A &one, const A &other) { return !Eq<A>::equals(one, other); }
 
+#else
+
+    template <typename A, typename = std::enable_if_t<Eq<A>::pertain>>
+    constexpr bool operator==(const A &one, const A &other)
+    {
+        return Eq<A>::equals(one, other);
+    }
+
+    template <typename A, typename = std::enable_if_t<Eq<A>::pertain>>
+    constexpr bool operator!=(const A &one, const A &other) { return !Eq<A>::equals(one, other); }
+
+#endif
+
     enum Ordering
     {
         LT,
@@ -259,6 +274,7 @@ namespace fcl
         constexpr static Ordering compare(const A &one, const A &other);
     };
 
+#ifdef NATIVE_ORD_BY_COMPARISON
     template <typename T, typename Enable = void>
     struct __has_builtin_comparison_operator : public std::false_type
     {
@@ -288,6 +304,25 @@ namespace fcl
 
     template <typename A, typename = std::enable_if_t<Ord<A>::pertain && !__has_builtin_comparison_operator<A>::value>>
     constexpr bool operator>(const A &one, const A &other) { return Ord<A>::compare(one, other) == Ordering::GT; }
+
+#else
+
+    template <typename A, typename = std::enable_if_t<Ord<A>::pertain>>
+    constexpr bool operator<=(const A &one, const A &other)
+    {
+        return Ord<A>::compare(one, other) != Ordering::GT;
+    }
+
+    template <typename A, typename = std::enable_if_t<Ord<A>::pertain>>
+    constexpr bool operator>=(const A &one, const A &other) { return Ord<A>::compare(one, other) != Ordering::LT; }
+
+    template <typename A, typename = std::enable_if_t<Ord<A>::pertain>>
+    constexpr bool operator<(const A &one, const A &other) { return Ord<A>::compare(one, other) == Ordering::LT; }
+
+    template <typename A, typename = std::enable_if_t<Ord<A>::pertain>>
+    constexpr bool operator>(const A &one, const A &other) { return Ord<A>::compare(one, other) == Ordering::GT; }
+
+#endif
 
     using std::string;
 
@@ -331,8 +366,9 @@ namespace fcl
             return sstr.str();
         }
     };
+#endif
 
-#elif NATIVE_SHOW_BY_TO_STRING
+#ifdef NATIVE_SHOW_BY_TO_STRING
 
     template <typename T, typename Enable = void>
     struct __has_to_string_implementation : public std::false_type
@@ -693,31 +729,5 @@ namespace fcl
             static_assert(Applicative<return_type_t<F>>::pertain);
         }
     };
-
-    // template <typename... Ts>
-    // struct __conjuct__pertain;
-
-    // template <typename T, typename... Ts>
-    // struct __conjuct__pertain<T, Ts...> : public std::bool_constant<T::pertain && __conjuct__pertain<Ts...>::value>
-    // {
-    // };
-
-    // template <>
-    // struct __conjuct__pertain<> : public std::true_type
-    // {
-    // };
-
-    // template <typename... Ts>
-    // using enable_type_class_t = std::enable_if_t<__conjuct__pertain<Ts...>::value>;
-
-    // template <template <typename...> typename Typeclass, typename A, typename B, typename Enable = void>
-    // struct is_of_same_type_class_instance : public std::false_type
-    // {
-    // };
-
-    // template <template <typename...> typename Typeclass, typename A, typename B>
-    // struct is_of_same_type_class_instance<Typeclass, A, B, std::enable_if_t<Typeclass<A>::pertain && Typeclass<B>::pertain && std::is_same<typename Typeclass<A>::template permutated<typename Typeclass<B>::parameter>, B>::value && std::is_same<typename Typeclass<B>::template permutated<typename Typeclass<A>::parameter>, A>::value>> : public std::true_type
-    // {
-    // };
 }
 #endif
