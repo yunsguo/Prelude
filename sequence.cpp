@@ -61,8 +61,9 @@ namespace fcl
 
         constexpr static int get_depth(const node<A> &n)
         {
-            return n.a.index() == 0 ? std::get<0>(n.a).index() == 0 ? 1 + get_depth(*std::get<0>(std::get<0>(std::get<0>(n.a)))) : 1 : std::get<1>(n.a).index() == 0 ? 1 + get_depth(*std::get<0>(std::get<0>(std::get<1>(n.a))))
-                                                                                                                                                                     : 1;
+            return n.a.index() == 1 ? 1 : n.a.index() == 3 ? 1
+                                      : n.a.index() == 2   ? 1 + get_depth(*std::get<0>(std::get<2>(n.a)))
+                                                           : 1 + get_depth(*std::get<0>(std::get<0>(n.a)));
         }
 
         template <size_t N>
@@ -82,15 +83,10 @@ namespace fcl
             return (std::get<0>(c) ? show(*std::get<0>(c)) : std::string("nullptr")) + ", " + show(c.tail);
         }
 
-        template <size_t N>
-        constexpr static std::string show(const numbered_node<A, N> &v)
+        constexpr static std::string show(const std::variant<CTA<std::shared_ptr<node<A>>, 2>, std::shared_ptr<CTA<A, 2>>, CTA<std::shared_ptr<node<A>>, 3>, std::shared_ptr<CTA<A, 3>>> &v)
         {
-            return v.index() == 0 ? show(std::get<0>(v)) : show(std::get<1>(v));
-        }
-
-        constexpr static std::string show(const std::variant<numbered_node<A, 2>, numbered_node<A, 3>> &v)
-        {
-            return v.index() == 0 ? show(std::get<0>(v)) : show(std::get<1>(v));
+            return v.index() >= 2 ? v.index() == 2 ? show(std::get<2>(v)) : show(std::get<3>(v)) : v.index() == 0 ? show(std::get<0>(v))
+                                                                                                                  : show(std::get<1>(v));
         }
 
         constexpr static string show(const node<A> &n)
@@ -99,15 +95,6 @@ namespace fcl
                                                : "^" + std::to_string(get_depth(n)) + " " + show(n.a));
         }
     };
-
-    // template <typename A>
-    // struct Show<std::shared_ptr<A>, enable_type_class_t<Show<A>>> : public pertaining_type_class
-    // {
-    //     constexpr static string show(const std::shared_ptr<A> &p)
-    //     {
-    //         return (bool)p ? "-> " + Show<A>::show(*p) : "nullptr";
-    //     }
-    // };
 
     template <>
     struct Show<empty> : public pertaining_type_class
@@ -146,28 +133,25 @@ namespace fcl
     };
 }
 
-finger_tree<int> get_large(int n, int i = 1, finger_tree<int> identity = empty_v)
+finger_tree<int> get_large_left(int n, int i = 1, finger_tree<int> identity = empty_v)
 {
     if (n <= i)
         return identity;
     auto k = i += identity;
-    std::cout << k << std::endl;
-    return get_large(n, i + 1, k);
+    return get_large_left(n, i + 1, k);
+}
+
+finger_tree<int> get_large_right(int n, int i = 1, finger_tree<int> identity = empty_v)
+{
+    if (n <= i)
+        return identity;
+    auto k = identity << i;
+    return get_large_right(n, i + 1, k);
 }
 
 int main()
 {
+    std::cout << get_large_left(100) << std::endl;
 
-    // CTA<int, 5> test = make_cta(1, 2, 3, 4, 5);
-    // std::cout << test << std::endl;
-
-    // std::cout << (1 += empty_v) << std::endl;
-
-    // std::cout << (2 += 1 += empty_v) << std::endl;
-
-    // std::cout << (5 += 4 += 3 += 2 += 1 += empty_v) << std::endl;
-
-    // std::cout << (9 += 8 += 7 += 6 += 5 += 4 += 3 += 2 += 1 += empty_v) << std::endl;
-
-    std::cout << get_large(100) << std::endl;
+    std::cout << get_large_right(100) << std::endl;
 }
