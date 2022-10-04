@@ -1,9 +1,9 @@
 /*
-* prelude.cpp
-* test stub for prelude.h
-* no actual implenmetaion included
-* Yunsheng Guo yguo125@syr.edu
-*/
+ * prelude.cpp
+ * test stub for prelude.h
+ * no actual implenmetaion included
+ * Yunsheng Guo yguo125@syr.edu
+ */
 
 #include <iostream>
 #include <string>
@@ -100,9 +100,9 @@ int main()
     assert((mop1 * maybe<int>(1) << maybe<int>(3)) == maybe<int>(3));
     assert((mop1 * maybe<int>(1) >> maybe<int>(3)) * maybe<bool>(true) == maybe<int>(2));
 
-    assert(mop1 * maybe<int>(1) * maybe<bool>(false) >> maybe<bool>(true) == maybe<int>(0));
-    assert(mop1 * maybe<int>(1) * maybe<bool>(false) << maybe<bool>(true) == maybe<bool>(true));
-    assert(mop1 * maybe<int>(1) * maybe<bool>(false) >> maybe<bool>(true) == maybe<bool>(false));
+    assert((mop1 * maybe<int>(1) * maybe<bool>(false) >> maybe<bool>(true)) == maybe<int>(0));
+    assert((mop1 * maybe<int>(1) * maybe<bool>(false) << maybe<bool>(true)) == maybe<bool>(true));
+    assert((mop1 * maybe<int>(1) * maybe<bool>(false) >> maybe<bool>(true)) == maybe<bool>(false));
     assert(mop1 * maybe<int>(1) * (maybe<int>(3) << maybe<bool>(true)) == maybe<int>(2));
     assert(maybe_apply(-1, increment, maybe<int>(2)) == 3);
     assert(maybe_apply(-1, increment, nothing) == -1);
@@ -118,7 +118,6 @@ int main()
     std::cout << "show ts1: " << ts1 << std::endl;
     std::cout << "semigroup op: " << (ts1 + ts2 + ts1 + ts2) << std::endl;
     std::cout << "semigroup op: " << (1 == 2) << std::endl;
-    std::cout << "5 by show: " << Show<int>::show(5) << std::endl;
 
     auto f = increment;
     maybe<int> m(5);
@@ -128,10 +127,14 @@ int main()
 
     maybe<__native_value_type_t<decltype(increment)>> m2 = increment;
     static_assert(fcl::Show<int>::pertain);
-    static_assert(fcl::Show<maybe<int>>::pertain);
     std::cout << "maybe Int: " << maybe<int>(3) << std::endl;
     std::cout << "nothing < maybe 5: " << (m1 < m) << std::endl;
-    std::cout << "5 by show: " << Show<int>::show(5) << std::endl;
+    std::cout << "5 by show: ";
+    auto al = maybe<int>() | maybe<int>(5);
+
+    auto test1 = !__has_builtin_insersion_operator<maybe<int>>::value;
+    auto test2 = Show<maybe<int>>::pertain;
+    std::cout << "nothing | maybe 5: " << al << std::endl;
     std::cout << "nothing | maybe 5: " << (maybe<int>() | maybe<int>(5)) << std::endl;
     std::cout << "monadic_add <= maybe 5 <= maybe 6 << nothing: " << (monadic_add <= maybe<int>(5) <= maybe<int>(6) << maybe<int>(nothing)) << std::endl;
     std::cout << "monadic_add <= maybe -5 <= maybe -6: " << (monadic_add <= maybe<int>(-5) <= maybe<int>(-6)) << std::endl;

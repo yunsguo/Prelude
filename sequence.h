@@ -4,13 +4,12 @@
 #include <variant>
 #include <type_traits>
 #include <memory>
+#include "prelude.h"
 
 namespace fcl
 {
 
-    template <size_t>
-    struct __cta__impl;
-
+    // c++20
     template <typename T>
     using __remove_cvref_t = std::remove_reference_t<std::remove_cv_t<T>>;
 
@@ -20,7 +19,10 @@ namespace fcl
     template <typename From, typename To>
     using __is_perfectly_forwardable = std::bool_constant<std::is_convertible<__remove_cvref_t<From>, To>::value && std::is_same<__remove_cvref_t<From>, __remove_cvref_t<To>>::value>;
 
-    //compile-time array
+    // compile-time array
+    template <size_t>
+    struct __cta__impl;
+
     template <typename A, size_t N>
     struct CTA
     {
@@ -53,9 +55,6 @@ namespace fcl
         template <typename, size_t>
         friend struct CTA;
 
-        template <typename, typename>
-        friend struct Show;
-
         template <typename>
         friend struct sequence_traits;
 
@@ -75,9 +74,6 @@ namespace fcl
 
         template <typename, size_t>
         friend struct CTA;
-
-        template <typename, typename>
-        friend struct Show;
 
         template <typename>
         friend struct sequence_traits;
@@ -165,8 +161,15 @@ namespace fcl
 
         template <typename A>
         constexpr static const CTA<A, I> init(const CTA<A, I + 1> &c) { return CTA<A, I>(c.head, __cta__impl<I - 1>::init(c.tail)); }
+
+        template<typename A>
+        constexpr static std::pair<A const & ,CTA<A,I-1> const &>  view(const CTA<A,I>& a)
+        {
+            return {a.head,a.tail};
+        }
     };
 }
+
 namespace std
 {
 

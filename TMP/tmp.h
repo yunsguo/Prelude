@@ -378,12 +378,14 @@ namespace tmp
         using type = drop_t<I - 1, pack<As...>>;
     };
 
+    using npos_t = std::integral_constant<size_t, SIZE_MAX>;
+
     //Returns the size/length of A finite structure As an Int.
     template <typename A>
     struct length : public std::conditional_t<
                         is_pack_like<A>::value,
                         std::integral_constant<size_t, length<pack_traits_t<A>>::value>,
-                        std::integral_constant<size_t, -1>>
+                        std::integral_constant<size_t, SIZE_MAX>>
     {
     };
 
@@ -441,7 +443,7 @@ namespace tmp
     };
 
     template <typename A>
-    struct elem_index<A, pack<>> : public std::integral_constant<size_t, -1>
+    struct elem_index<A, pack<>> : public npos_t
     {
     };
 
@@ -636,7 +638,7 @@ namespace
 
     static_assert(length<lst1>::value == 5);
 
-    static_assert(std::is_same<typename index<2, lst6>::type, char>::value);
+    static_assert(std::is_same<typename tmp::index<2, lst6>::type, char>::value);
 
     static_assert(elem<int, lst1>::value);
 

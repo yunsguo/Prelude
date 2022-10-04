@@ -37,21 +37,25 @@ if(NATIVE_ORD_BY_COMPARISON)
   add_compile_definitions(NATIVE_ORD_BY_COMPARISON)
 endif()
 
-option(NATIVE_SHOW_BY_SSTREAM "lift native types to Show by using <sstream>"
-       ON)
-if(NATIVE_SHOW_BY_SSTREAM)
-  add_compile_definitions(NATIVE_SHOW_BY_SSTREAM)
-endif()
+# option(NATIVE_SHOW_BY_SSTREAM "lift native types to Show by using <sstream>"
+#        ON)
+# if(NATIVE_SHOW_BY_SSTREAM)
+#   add_compile_definitions(NATIVE_SHOW_BY_SSTREAM)
+# endif()
 
-option(NATIVE_SHOW_BY_TO_STRING
-       "lift native types to Show by using std::to_string" OFF)
-if(NATIVE_SHOW_BY_TO_STRING)
-  add_compile_definitions(NATIVE_SHOW_BY_TO_STRING)
-endif()
+# option(NATIVE_SHOW_BY_TO_STRING
+#        "lift native types to Show by using std::to_string" OFF)
+# if(NATIVE_SHOW_BY_TO_STRING)
+#   add_compile_definitions(NATIVE_SHOW_BY_TO_STRING)
+# endif()
 
 add_library(Base INTERFACE base.h)
 target_link_libraries(Base INTERFACE TMP Function)
 target_include_directories(Base INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+
+add_library(Show INTERFACE show.h)
+target_link_libraries(Show INTERFACE Base)
+target_include_directories(Show INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_library(Sequence INTERFACE sequence.h)
 target_include_directories(Sequence INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

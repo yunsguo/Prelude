@@ -6,3 +6,5 @@ build
 CMakeFiles
 CMakeCache.txt
 *.log
+**/*.cmake
+**/Makefile

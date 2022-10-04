@@ -5,6 +5,7 @@
 #include <optional>
 
 #include "base.h"
+#include "show.h"
 
 namespace fcl
 {
@@ -41,41 +42,38 @@ namespace fcl
         return ma.has_value() ? function_traits<Func>::partial_apply(f, ma.value()) : defaulted;
     }
 
-    //The Eq class defines equality (==) and inequality (/=).
-    //Disabble due to optional native implementation
-    // template <typename A>
-    // struct Eq<maybe<A>, enable_type_class_t<Eq<A>>> : public pertaining_type_class
-    // {
-    //     constexpr static bool equals(const maybe<A> &one, const maybe<A> &other)
-    //     {
-    //         return one.has_value()     ? other.has_value() ? one.value() == other.value() : false
-    //                : other.has_value() ? false
-    //                                    : true;
-    //     }
-    // };
+    // The Eq class defines equality (==) and inequality (/=).
+    // Disabble due to optional native implementation
+    //  template <typename A>
+    //  struct Eq<maybe<A>, enable_type_class_t<Eq<A>>> : public pertaining_type_class
+    //  {
+    //      constexpr static bool equals(const maybe<A> &one, const maybe<A> &other)
+    //      {
+    //          return one.has_value()     ? other.has_value() ? one.value() == other.value() : false
+    //                 : other.has_value() ? false
+    //                                     : true;
+    //      }
+    //  };
 
-    //The Ord class is used for totally ordered datatypes.
-    //Disabble due to optional native implementation
-    // template <typename A>
-    // struct Ord<maybe<A>, enable_type_class_t<Ord<A>>> : public pertaining_type_class
-    // {
-    //     static_assert(Eq<maybe<A>>::pertain);
-    //     constexpr static Ordering compare(const maybe<A> &one, const maybe<A> &other)
-    //     {
-    //         return one.has_value()     ? other.has_value() ? Ord<A>::compare(one.value(), other.value()) : Ordering::GT
-    //                : other.has_value() ? Ordering::LT
-    //                                    : Ordering::EQ;
-    //     }
-    // };
+    // The Ord class is used for totally ordered datatypes.
+    // Disabble due to optional native implementation
+    //  template <typename A>
+    //  struct Ord<maybe<A>, enable_type_class_t<Ord<A>>> : public pertaining_type_class
+    //  {
+    //      static_assert(Eq<maybe<A>>::pertain);
+    //      constexpr static Ordering compare(const maybe<A> &one, const maybe<A> &other)
+    //      {
+    //          return one.has_value()     ? other.has_value() ? Ord<A>::compare(one.value(), other.value()) : Ordering::GT
+    //                 : other.has_value() ? Ordering::LT
+    //                                     : Ordering::EQ;
+    //      }
+    //  };
 
-    template <typename A>
-    struct Show<maybe<A>, enable_type_class_t<Show<A>>> : public pertaining_type_class
+    template <typename A, typename = enable_type_class_t<Show<A>>>
+    std::ostream &operator<<(std::ostream &os, const maybe<A> &value)
     {
-        constexpr static string show(const maybe<A> &value)
-        {
-            return value.has_value() ? "just " + Show<A>::show(value.value()) : "nothing";
-        }
-    };
+        return value.has_value() ? os << "just " << value.value() : os << "nothing";
+    }
 
     // The class of semigroups (types with an associative binary operation).
     template <typename A>
@@ -197,12 +195,12 @@ namespace fcl
     };
 
     // When a value is bound in do-notation, the pattern on the left hand side of <- might not match. In this case, this class provides a function to recover.
-    template <typename A>
-    struct MonadFail<maybe<A>> : public pertaining_type_class
-    {
-        static_assert(Monad<maybe<A>>::pertain);
-        constexpr static maybe<A> fail(string) { return nothing; };
-    };
+    // template <typename A>
+    // struct MonadFail<maybe<A>> : public pertaining_type_class
+    // {
+    //     static_assert(Monad<maybe<A>>::pertain);
+    //     static maybe<A> fail(const ) { return nothing; };
+    // };
 
     template <typename L, typename R>
     using either = std::variant<L, R>;
@@ -215,14 +213,11 @@ namespace fcl
         return eab.index() == 0 ? function_traits<Func1>::partial_apply(f1, std::get<0>(eab)) : function_traits<Func2>::partial_apply(f2, std::get<1>(eab));
     }
 
-    template <typename L, typename R>
-    struct Show<either<L, R>, enable_type_class_t<Show<L>, Show<R>>> : public pertaining_type_class
+    template <typename L, typename R, typename = enable_type_class_t<Show<L>, Show<R>>>
+    std::ostream &operator<<(std::ostream &os, const either<L, R> &e)
     {
-        constexpr static string show(const either<L, R> &e)
-        {
-            return e.index() == 0 ? "left " + Show<L>::show(std::get<0>(e)) : "right " + Show<R>::show(std::get<1>(e));
-        }
-    };
+        return e.index() == 0 ? os << "left " << std::get<0>(e) : os << "right " << std::get<1>(e);
+    }
 
     template <typename L, typename R>
     struct Semigroup<either<L, R>> : public pertaining_type_class

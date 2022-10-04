@@ -1,62 +1,55 @@
 /*
-*	prelude.h:
-*   emulating the Haskell prelude
-*   Language: C++, Visual Studio 2017
-*   Platform: Windows 10 Pro
-*   Application: recreational
-*   Author: Yunsheng Guo, yguo125@syr.edu
-*/
+ *	prelude.h:
+ *   emulating the Haskell prelude
+ *   Language: C++, Visual Studio 2017
+ *   Platform: Windows 10 Pro
+ *   Application: recreational
+ *   Author: Yunsheng Guo, yguo125@syr.edu
+ */
 
 /*
-*
-*   Package Operations:
-*	defines some convenient aliases
-*	includes type class implenmetations, Maybe type and its type traits implenmentations
-*	some static operators for type classes
-*	pattern matching snytax
-*
-*   Public Interface:
-*	check Haskell prelude for futher info
-*	Eq, Ord, Show all have their operator implenmeted
-*	Functor fmap is implenmented
-*	Applicative has the same partial apply operator as function type
-*	Monad has A unique operator >>= for ap and operator >> for compose
-*	due to the order needed to achieve do Haskell notation
-*	Monad is no longer an Applicative
-*
-*   Build Process:
-*   requires function.h and variant.h
-*
-*   Maintenance History:
-*   June 6
-*	first draft contains typeclass definitions and function application definition
-*   August 12
-*   refactor. move Maybe type into this for clarity and move all type class and traits declaration to meta.h
-*	change pattern matching syntax and let pattern matching use Maybe
-*	August 25
-*	final review for publish
-*
-*
-*/
+ *
+ *   Package Operations:
+ *	defines some convenient aliases
+ *	includes type class implenmetations, Maybe type and its type traits implenmentations
+ *	some static operators for type classes
+ *	pattern matching snytax
+ *
+ *   Public Interface:
+ *	check Haskell prelude for futher info
+ *	Eq, Ord, all have their operator implenmeted
+ *	Functor fmap is implenmented
+ *	Applicative has the same partial apply operator as function type
+ *	Monad has A unique operator >>= for ap and operator >> for compose
+ *	due to the order needed to achieve do Haskell notation
+ *	Monad is no longer an Applicative
+ *
+ *   Build Process:
+ *   requires function.h and variant.h
+ *
+ *   Maintenance History:
+ *   June 6
+ *	first draft contains typeclass definitions and function application definition
+ *   August 12
+ *   refactor. move Maybe type into this for clarity and move all type class and traits declaration to meta.h
+ *	change pattern matching syntax and let pattern matching use Maybe
+ *	August 25
+ *	final review for publish
+ *
+ *
+ */
 
 #ifndef BASE_H
 #define BASE_H
 
-#include <variant>
-#include <string>
-
-#ifdef NATIVE_SHOW_BY_SSTREAM
-#include <sstream>
-#endif
-
 #include "tmp.h"
 #include "function.h"
 
+#ifdef PATTERN_MATCH_BY_DATA_TRAITS
+#include <variant>
+
 namespace fcl
 {
-
-#ifdef PATTERN_MATCH_BY_DATA_TRAITS
-
     constexpr const auto data_npos = std::variant_npos;
 
     template <typename... As>
@@ -106,9 +99,11 @@ namespace fcl
             return data;
         }
     };
-
+}
 #endif
 
+namespace fcl
+{
     template <typename T, typename Tag>
     struct new_type
     {
@@ -155,9 +150,6 @@ namespace fcl
     struct Ord;
 
     template <typename, typename>
-    struct Show;
-
-    template <typename, typename>
     struct Semigroup;
 
     template <typename, typename>
@@ -174,13 +166,13 @@ namespace fcl
 
     struct pertaining_type_class
     {
-        //pertaining to a type class or not
+        // pertaining to a type class or not
         constexpr static const bool pertain = true;
     };
 
     struct not_pertaining_type_class
     {
-        //pertaining to a type class or not
+        // pertaining to a type class or not
         constexpr static const bool pertain = false;
     };
 
@@ -200,6 +192,9 @@ namespace fcl
     template <typename... Ts>
     using enable_type_class_t = std::enable_if_t<__conjuct__pertain<Ts...>::value>;
 
+    template <template <typename...> typename Typeclass, typename... Ts>
+    using enable_all_type_class_t = std::enable_if_t<__conjuct__pertain<Typeclass<Ts>...>::value>;
+
     template <template <typename...> typename Typeclass, typename A, typename B, typename Enable = void>
     struct is_of_same_type_class_instance : public std::false_type
     {
@@ -210,7 +205,7 @@ namespace fcl
     {
     };
 
-    //The Eq class defines equality (==) and inequality (/=).
+    // The Eq class defines equality (==) and inequality (/=).
     template <typename A, typename Enable = void>
     struct Eq : public not_pertaining_type_class
     {
@@ -218,15 +213,15 @@ namespace fcl
         constexpr static bool equals(const A &one, const A &other);
     };
 
+    template <typename... Args>
+    void ____eval(Args...);
+
 #ifdef NATIVE_EQ_BY_EQUALITY
 
     template <typename T, typename Enable = void>
     struct __has_builtin_equality_operator : public std::false_type
     {
     };
-
-    template <typename... Args>
-    void ____eval(Args...);
 
     template <typename T>
     struct __has_builtin_equality_operator<T, decltype(____eval<bool>(std::declval<T>() == std::declval<T>()))> : public std::true_type
@@ -265,7 +260,7 @@ namespace fcl
         GT
     };
 
-    //The Ord class is used for totally ordered datatypes.
+    // The Ord class is used for totally ordered datatypes.
     template <typename A, typename Enable = void>
     struct Ord : public not_pertaining_type_class
     {
@@ -322,82 +317,6 @@ namespace fcl
     template <typename A, typename = std::enable_if_t<Ord<A>::pertain>>
     constexpr bool operator>(const A &one, const A &other) { return Ord<A>::compare(one, other) == Ordering::GT; }
 
-#endif
-
-    using std::string;
-
-    // Conversion of values to readable Strings.
-    template <typename A, typename Enable = void>
-    struct Show : public not_pertaining_type_class
-    {
-        /** REQUIRED **/
-        constexpr static string show(const A &value);
-    };
-
-    template <>
-    struct Show<string> : public pertaining_type_class
-    {
-        static string show(const string &value) { return value; }
-    };
-
-#ifdef _GLIBCXX_IOSTREAM
-
-    template <typename T, typename Enable = void>
-    struct __has_builtin_insersion_operator : public std::false_type
-    {
-    };
-
-    void __ostream(std::ostream &);
-    template <typename T>
-    struct __has_builtin_insersion_operator<T,
-                                            decltype(__ostream(std::declval<std::ostream &>() << std::declval<T>()))> : public std::true_type
-    {
-    };
-
-#ifdef _GLIBCXX_SSTREAM
-
-    template <typename A>
-    struct Show<A, std::enable_if_t<__has_builtin_insersion_operator<A>::value && !std::is_convertible<A, string>::value>> : public pertaining_type_class
-    {
-        constexpr static string show(const A &value)
-        {
-            std::ostringstream sstr;
-            sstr << value;
-            return sstr.str();
-        }
-    };
-#endif
-
-#ifdef NATIVE_SHOW_BY_TO_STRING
-
-    template <typename T, typename Enable = void>
-    struct __has_to_string_implementation : public std::false_type
-    {
-    };
-
-    void __string(string);
-
-    template <typename T>
-    struct __has_to_string_implementation<T,
-                                          decltype(__string(std::to_string(std::declval<T>())))> : public std::true_type
-    {
-    };
-
-    template <typename A>
-    struct Show<A, std::enable_if_t<__has_to_string_implementation<A>::value && !std::is_convertible<A, string>::value>> : public pertaining_type_class
-    {
-        constexpr static string show(const A &value)
-        {
-            return std::to_string(value);
-        }
-    };
-
-#endif
-    template <typename A, typename = std::enable_if_t<Show<A>::pertain && !__has_builtin_insersion_operator<A>::value>>
-    constexpr std::ostream &operator<<(std::ostream &out, const A &value)
-    {
-        return out << Show<A>::show(value);
-    }
 #endif
 
     // The class of semigroups (types with an associative binary operation).
@@ -667,7 +586,7 @@ namespace fcl
     {
         // static_assert(Monad<MA>::pertain);
 
-        constexpr static MA fail(string);
+        constexpr static MA fail(const char *);
     };
 
     template <typename F>
@@ -720,7 +639,7 @@ namespace fcl
 
         using parameter = undefined;
 
-        //Map each element of a structure to an action, evaluate these actions from left to right, and collect the results.
+        // Map each element of a structure to an action, evaluate these actions from left to right, and collect the results.
         template <typename F>
         constexpr static typename Applicative<return_type_t<F>>::template permutated<permutated<typename Applicative<return_type_t<F>>::parameter>> traverse(F, TA)
         {
